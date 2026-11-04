@@ -1,0 +1,152 @@
+# PBR extension keys (Pr/Pm/map_Pr/map_Pm/norm) are used by Blender, Unity and Unreal importers
+
+newmtl M_Concrete_FacadePanel
+Kd 1.0000 1.0000 1.0000
+Ka 1 1 1
+Ks 0.04 0.04 0.04
+Ns 4.0
+d 1.000
+illum 2
+Pr 1.000
+Pm 1.000
+map_Kd ../../textures/T_Concrete_FacadePanel_BaseColor.png
+map_Pr ../../textures/T_Concrete_FacadePanel_Roughness.png
+map_Ka ../../textures/T_Concrete_FacadePanel_AO.png
+norm ../../textures/T_Concrete_FacadePanel_Normal.png
+map_Bump -bm 1.00 ../../textures/T_Concrete_FacadePanel_Normal.png
+
+newmtl M_Concrete_FacadeWall
+Kd 1.0000 1.0000 1.0000
+Ka 1 1 1
+Ks 0.04 0.04 0.04
+Ns 4.0
+d 1.000
+illum 2
+Pr 1.000
+Pm 1.000
+map_Kd ../../textures/T_Concrete_FacadeWall_BaseColor.png
+map_Pr ../../textures/T_Concrete_FacadeWall_Roughness.png
+map_Ka ../../textures/T_Concrete_FacadeWall_AO.png
+norm ../../textures/T_Concrete_FacadeWall_Normal.png
+map_Bump -bm 1.00 ../../textures/T_Concrete_FacadeWall_Normal.png
+
+newmtl M_Ceramic_Tile_RedBrown
+Kd 1.0000 1.0000 1.0000
+Ka 1 1 1
+Ks 0.04 0.04 0.04
+Ns 4.0
+d 1.000
+illum 2
+Pr 1.000
+Pm 1.000
+map_Kd ../../textures/T_Ceramic_Tile_RedBrown_BaseColor.png
+map_Pr ../../textures/T_Ceramic_Tile_RedBrown_Roughness.png
+map_Ka ../../textures/T_Ceramic_Tile_RedBrown_AO.png
+norm ../../textures/T_Ceramic_Tile_RedBrown_Normal.png
+map_Bump -bm 1.00 ../../textures/T_Ceramic_Tile_RedBrown_Normal.png
+
+newmtl M_Roofing_Bitumen
+Kd 1.0000 1.0000 1.0000
+Ka 1 1 1
+Ks 0.04 0.04 0.04
+Ns 4.0
+d 1.000
+illum 2
+Pr 1.000
+Pm 1.000
+map_Kd ../../textures/T_Roofing_Bitumen_BaseColor.png
+map_Pr ../../textures/T_Roofing_Bitumen_Roughness.png
+map_Ka ../../textures/T_Roofing_Bitumen_AO.png
+norm ../../textures/T_Roofing_Bitumen_Normal.png
+map_Bump -bm 1.00 ../../textures/T_Roofing_Bitumen_Normal.png
+
+newmtl M_Concrete_Trim
+Kd 1.0000 1.0000 1.0000
+Ka 1 1 1
+Ks 0.04 0.04 0.04
+Ns 4.0
+d 1.000
+illum 2
+Pr 1.000
+Pm 1.000
+map_Kd ../../textures/T_Concrete_Trim_BaseColor.png
+map_Pr ../../textures/T_Concrete_Trim_Roughness.png
+map_Ka ../../textures/T_Concrete_Trim_AO.png
+norm ../../textures/T_Concrete_Trim_Normal.png
+map_Bump -bm 1.00 ../../textures/T_Concrete_Trim_Normal.png
+
+newmtl M_Concrete_Paving
+Kd 1.0000 1.0000 1.0000
+Ka 1 1 1
+Ks 0.04 0.04 0.04
+Ns 4.0
+d 1.000
+illum 2
+Pr 1.000
+Pm 1.000
+map_Kd ../../textures/T_Concrete_Paving_BaseColor.png
+map_Pr ../../textures/T_Concrete_Paving_Roughness.png
+map_Ka ../../textures/T_Concrete_Paving_AO.png
+norm ../../textures/T_Concrete_Paving_Normal.png
+map_Bump -bm 1.00 ../../textures/T_Concrete_Paving_Normal.png
+
+newmtl M_Concrete_Weathered
+Kd 1.0000 1.0000 1.0000
+Ka 1 1 1
+Ks 0.04 0.04 0.04
+Ns 4.0
+d 1.000
+illum 2
+Pr 1.000
+Pm 1.000
+map_Kd ../../textures/T_Concrete_Weathered_BaseColor.png
+map_Pr ../../textures/T_Concrete_Weathered_Roughness.png
+map_Ka ../../textures/T_Concrete_Weathered_AO.png
+norm ../../textures/T_Concrete_Weathered_Normal.png
+map_Bump -bm 1.00 ../../textures/T_Concrete_Weathered_Normal.png
+
+newmtl M_Metal_Handrail
+Kd 1.0000 1.0000 1.0000
+Ka 1 1 1
+Ks 0.04 0.04 0.04
+Ns 4.0
+d 1.000
+illum 2
+Pr 1.000
+Pm 1.000
+map_Kd ../../textures/T_Metal_Handrail_BaseColor.png
+map_Pr ../../textures/T_Metal_Handrail_Roughness.png
+map_Pm ../../textures/T_Metal_Handrail_Metallic.png
+map_Ka ../../textures/T_Metal_Handrail_AO.png
+norm ../../textures/T_Metal_Handrail_Normal.png
+map_Bump -bm 1.00 ../../textures/T_Metal_Handrail_Normal.png
+
+newmtl M_Glass
+Kd 1.0000 1.0000 1.0000
+Ka 1 1 1
+Ks 0.04 0.04 0.04
+Ns 4.0
+d 1.000
+illum 2
+Pr 1.000
+Pm 1.000
+map_Kd ../../textures/T_Glass_BaseColor.png
+map_Pr ../../textures/T_Glass_Roughness.png
+map_Ka ../../textures/T_Glass_AO.png
+norm ../../textures/T_Glass_Normal.png
+map_Bump -bm 0.30 ../../textures/T_Glass_Normal.png
+
+newmtl M_Window_Frame
+Kd 1.0000 1.0000 1.0000
+Ka 1 1 1
+Ks 0.04 0.04 0.04
+Ns 4.0
+d 1.000
+illum 2
+Pr 1.000
+Pm 1.000
+map_Kd ../../textures/T_Window_Frame_BaseColor.png
+map_Pr ../../textures/T_Window_Frame_Roughness.png
+map_Ka ../../textures/T_Window_Frame_AO.png
+norm ../../textures/T_Window_Frame_Normal.png
+map_Bump -bm 1.00 ../../textures/T_Window_Frame_Normal.png
