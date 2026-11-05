@@ -80,16 +80,17 @@ jobs:
           name: builds
           path: builds
 
-      # The ad-hoc signature made by Godot on Linux fails Apple's codesign --verify,
-      # so the app is re-signed here with Apple's codesign and packed with ditto.
+      # Godot exports the Mac app unsigned (codesign/codesign=0); Apple Silicon only runs signed code,
+      # so it is ad-hoc signed here with Apple's codesign and packed with ditto.
       - name: Sign and package the Mac app
         run: |
           uname -m
           system_profiler SPDisplaysDataType | head -20
           mkdir app && cd app
           ditto -x -k ../builds/Sanatorium-macOS.zip .
-          codesign --verify --deep --verbose=4 Санаторий.app || true
-          codesign --force --deep --sign - --timestamp=none Санаторий.app
+          rm -rf Санаторий.app/Contents/_CodeSignature
+          codesign --remove-signature Санаторий.app/Contents/MacOS/Санаторий || true
+          codesign --force --sign - --timestamp=none Санаторий.app
           codesign --verify --deep --strict --verbose=2 Санаторий.app
           lipo -archs Санаторий.app/Contents/MacOS/Санаторий
           mkdir ../mac && ditto -c -k --sequesterRsrc --keepParent Санаторий.app ../mac/Sanatorium-macOS.zip
