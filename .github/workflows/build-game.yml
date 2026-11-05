@@ -1,0 +1,70 @@
+name: Build Sanatorium game
+
+on:
+  push:
+    branches: [sanatorium-game-release]
+    paths:
+      - "soviet_building/game/**"
+      - ".github/workflows/build-game.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  GODOT_VERSION: "4.7.2"
+  RELEASE_TAG: "sanatorium-v1.0"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Godot and export templates
+        run: |
+          base="https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable"
+          curl -sSL -o godot.zip "$base/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip"
+          unzip -q godot.zip
+          sudo mv "Godot_v${GODOT_VERSION}-stable_linux.x86_64" /usr/local/bin/godot
+          curl -sSL -o templates.tpz "$base/Godot_v${GODOT_VERSION}-stable_export_templates.tpz"
+          dir="$HOME/.local/share/godot/export_templates/${GODOT_VERSION}.stable"
+          mkdir -p "$dir"
+          unzip -q templates.tpz -d tpl
+          mv tpl/templates/* "$dir/"
+          rm -rf tpl templates.tpz godot.zip
+
+      - name: Import assets and run game tests
+        working-directory: soviet_building/game
+        run: |
+          godot --headless --path . --import
+          godot --headless --path . -- --test | tee test.log
+          grep -q "ALL TESTS PASSED" test.log
+
+      - name: Export Windows and Linux builds
+        working-directory: soviet_building/game
+        run: |
+          mkdir -p ../out/Sanatorium-Windows ../out/Sanatorium-Linux
+          godot --headless --path . --export-release "Windows"
+          godot --headless --path . --export-release "Linux"
+          test -s ../out/Sanatorium-Windows/Sanatorium.exe
+          test -s ../out/Sanatorium-Linux/Sanatorium.x86_64
+
+      - name: Package
+        working-directory: soviet_building/out
+        run: |
+          cp "../game/КАК ИГРАТЬ.txt" Sanatorium-Windows/
+          cp "../game/КАК ИГРАТЬ.txt" Sanatorium-Linux/
+          chmod +x Sanatorium-Linux/Sanatorium.x86_64
+          zip -qr -9 Sanatorium-Windows.zip Sanatorium-Windows
+          zip -qr -9 Sanatorium-Linux.zip Sanatorium-Linux
+          ls -la *.zip
+
+      - name: Upload to release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.RELEASE_TAG }}
+          overwrite_files: true
+          files: |
+            soviet_building/out/Sanatorium-Windows.zip
+            soviet_building/out/Sanatorium-Linux.zip

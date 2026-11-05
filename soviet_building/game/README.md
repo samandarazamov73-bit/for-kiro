@@ -4,7 +4,18 @@
 
 ![Кадры из игры](../renders/game_overview.jpg)
 
-## Как запустить
+## Скачать готовую игру (без Godot)
+
+Готовые сборки лежат в [релизе sanatorium-v1.0](https://github.com/samandarazamov73-bit/for-kiro/releases/tag/sanatorium-v1.0):
+
+- **Windows:** `Sanatorium-Windows.zip` — распакуйте и запустите `Sanatorium.exe`.
+- **Linux:** `Sanatorium-Linux.zip` — распакуйте и запустите `./Sanatorium.x86_64`.
+
+Если Windows покажет «Windows защитила ваш компьютер», нажмите «Подробнее» → «Выполнить в любом случае»: у игры нет цифровой подписи.
+
+Сборки делает GitHub Actions (`.github/workflows/build-game.yml`) при каждом изменении игры в ветке `sanatorium-game-release`. Настройки экспорта — в `export_presets.cfg`.
+
+## Как запустить из исходников
 
 1. Скачайте Godot **4.7** или новее (стандартная версия, не .NET): https://godotengine.org/download
 2. Откройте Godot, нажмите **Import** и выберите файл `soviet_building/game/project.godot`.
