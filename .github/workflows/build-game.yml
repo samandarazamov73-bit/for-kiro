@@ -60,8 +60,6 @@ jobs:
           chmod +x Sanatorium-Linux/Sanatorium.x86_64
           zip -qr -9 Sanatorium-Windows.zip Sanatorium-Windows
           zip -qr -9 Sanatorium-Linux.zip Sanatorium-Linux
-          cp "../game/КАК ИГРАТЬ.txt" .
-          zip -q Sanatorium-macOS.zip "КАК ИГРАТЬ.txt"
           ls -la *.zip
 
       - uses: actions/upload-artifact@v4
@@ -82,16 +80,36 @@ jobs:
           name: builds
           path: builds
 
-      - name: Launch the exported Mac app
+      # The ad-hoc signature made by Godot on Linux fails Apple's codesign --verify,
+      # so the app is re-signed here with Apple's codesign and packed with ditto.
+      - name: Sign and package the Mac app
         run: |
           uname -m
           system_profiler SPDisplaysDataType | head -20
-          mkdir app && cd app && unzip -q ../builds/Sanatorium-macOS.zip
-          codesign --verify --deep --verbose=2 Санаторий.app
+          mkdir app && cd app
+          ditto -x -k ../builds/Sanatorium-macOS.zip .
+          codesign --verify --deep --verbose=4 Санаторий.app || true
+          codesign --force --deep --sign - --timestamp=none Санаторий.app
+          codesign --verify --deep --strict --verbose=2 Санаторий.app
           lipo -archs Санаторий.app/Contents/MacOS/Санаторий
+          mkdir ../mac && ditto -c -k --sequesterRsrc --keepParent Санаторий.app ../mac/Sanatorium-macOS.zip
+          cd ../mac && cp "../soviet_building/game/КАК ИГРАТЬ.txt" . && zip -q Sanatorium-macOS.zip "КАК ИГРАТЬ.txt" && rm "КАК ИГРАТЬ.txt"
+          ls -la
+
+      - name: Launch the Mac app from the final archive
+        run: |
+          mkdir check && cd check
+          ditto -x -k ../mac/Sanatorium-macOS.zip .
+          codesign --verify --deep --strict --verbose=2 Санаторий.app
           ./Санаторий.app/Contents/MacOS/Санаторий --quit-after 1200 2>&1 | tee ../app.log
           grep -q "Sanatorium loaded" ../app.log
           ! grep -q "SCRIPT ERROR" ../app.log
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mac-build
+          path: mac/Sanatorium-macOS.zip
+          retention-days: 7
 
       - name: Run tests and benchmark from source
         working-directory: soviet_building/game
@@ -124,6 +142,11 @@ jobs:
           name: builds
           path: builds
 
+      - uses: actions/download-artifact@v4
+        with:
+          name: mac-build
+          path: mac
+
       - name: Upload to release
         uses: softprops/action-gh-release@v2
         with:
@@ -132,4 +155,4 @@ jobs:
           files: |
             builds/Sanatorium-Windows.zip
             builds/Sanatorium-Linux.zip
-            builds/Sanatorium-macOS.zip
+            mac/Sanatorium-macOS.zip
