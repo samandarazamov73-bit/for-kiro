@@ -72,6 +72,12 @@ jobs:
   mac-m1-check:
     needs: build
     runs-on: macos-14
+    env:
+      # The runner's virtual GPU is not an Apple-Silicon GPU family: use Godot's fog path without texture atomics.
+      GODOT_MTL_DISABLE_IMAGE_ATOMICS: "1"
+    defaults:
+      run:
+        shell: bash -eo pipefail {0}
     steps:
       - uses: actions/checkout@v4
 

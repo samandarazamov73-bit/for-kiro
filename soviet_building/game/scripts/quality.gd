@@ -45,6 +45,7 @@ func cycle() -> void:
 
 func apply() -> void:
 	var env: Environment = game.env
+	env.volumetric_fog_enabled = fog_supported()
 	env.ssao_enabled = SSAO[level]
 	env.ssil_enabled = SSIL[level]
 	RenderingServer.environment_set_volumetric_fog_volume_size(FOG_SIZE[level][0], FOG_SIZE[level][1])
@@ -56,6 +57,17 @@ func apply() -> void:
 	if game.lights:
 		game.lights.max_shadows = SHADOWED_LAMPS[level]
 	_apply_scale()
+
+
+## Godot 4.7's Metal driver turns on texture atomics from the macOS version alone, but the texture format
+## behind volumetric fog needs an Apple Silicon GPU. On Intel Macs and virtual GPUs the fog breaks, so it
+## stays off there unless GODOT_MTL_DISABLE_IMAGE_ATOMICS=1 makes Godot use its fallback path.
+func fog_supported() -> bool:
+	if RenderingServer.get_current_rendering_driver_name() != "metal":
+		return true
+	if OS.get_environment("GODOT_MTL_DISABLE_IMAGE_ATOMICS") == "1":
+		return true
+	return RenderingServer.get_video_adapter_name().begins_with("Apple M")
 
 
 func _apply_scale() -> void:
