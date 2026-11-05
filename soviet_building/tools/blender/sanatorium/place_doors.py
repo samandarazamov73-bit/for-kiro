@@ -35,18 +35,28 @@ def build_doors(B):
         if d.kind not in ("window", "port", "counter"):
             # threshold: closes the floor inside the wall thickness (room floors stop at the wall faces)
             mbt = MB("thr")
-            mbt.box(-g.ow / 2, g.ow / 2, -D.CASE_T, T + D.CASE_T, -0.02, 0.008, "atlas_furn", faces=("+z", "-y", "+y"),
+            # flush with the floors (2 mm), only inside the wall thickness: no lip, no overlap with floors
+            mbt.box(-g.ow / 2, g.ow / 2, 0.0, T, -0.02, 0.002, "atlas_furn", faces=("+z", "-y", "+y"),
                     uv="region", regions={"*": "wood_dark" if d.kind in FRAMED and d.b != "EXT" else "concrete"})
             _merge_local(glazing[lvl], mbt, g, g.z0)
         if d.kind in FRAMED:
             style = STYLE[d.kind]
             region = "metal_grey" if style.startswith("metal") else "wood_dark"
-            fkey = f"Frame_{g.ow:.2f}x{g.z1 - g.z0:.2f}_T{T:.2f}_{region}"
-            lib.place(fkey, lambda: D.frame_mesh(g.ow, g.z1 - g.z0, T, "atlas_furn", region), coll,
-                      f"DoorFrame_{d.a.split('.')[1]}_{gi}", (X0, Y0, g.z0), rot, parent)
-            B.stats["Doors"] = B.stats.get("Doors", 0) + lib.meshes[fkey][1]
             double = d.kind in ("double", "double_glazed", "steel_double")
             inner = g.ow - 2 * D.GAP
+            into_a0 = d.swing == "a" or d.b == "EXT"
+            if d.b == "EXT":
+                ly0 = T - D.LEAF_T - 0.006
+                stop = (ly0 + D.LEAF_T, ly0 + D.LEAF_T + D.STOP_T)
+            elif into_a0:
+                stop = (D.LEAF_T, D.LEAF_T + D.STOP_T)
+            else:
+                stop = (T - D.LEAF_T - D.STOP_T, T - D.LEAF_T)
+            fkey = f"Frame_{g.ow:.2f}x{g.z1 - g.z0:.2f}_T{T:.2f}_{region}_S{stop[0]:.3f}"
+            lib.place(fkey, lambda: D.frame_mesh(g.ow, g.z1 - g.z0, T, "atlas_furn", region, stop), coll,
+                      f"DoorFrame_{gi:03d}", (X0, Y0, g.z0), rot, parent)
+            B.stats["Doors"] = B.stats.get("Doors", 0) + lib.meshes[fkey][1]
+            lh = (g.z1 - g.z0) - 0.006 - D.GAP     # leaf fills the opening up to the head clearance
             leaves = [(-inner / 2, +1, inner / 2), (inner / 2, -1, inner / 2)] if double else (
                 [(-inner / 2, +1, inner)] if d.hinge == "l" else [(inner / 2, -1, inner)])
             into_a = d.swing == "a"
@@ -57,21 +67,25 @@ def build_doors(B):
                 ly = (0.0 if into_a else T - D.LEAF_T)
                 if ext:
                     ly = T - D.LEAF_T - 0.006
-                lkey = f"Leaf_{style}_{lw:.2f}x{d.h:.2f}_{'L' if hs > 0 else 'R'}{'_nb' if ext else ''}"
+                lkey = f"Leaf_{style}_{lw:.3f}x{lh:.3f}_{'L' if hs > 0 else 'R'}{'_nb' if ext else ''}"
                 hxw, hyw = D.to_world(g, hx, ly if into_a else ly + D.LEAF_T)
                 ang = math.radians(d.ang if not double or li == 0 else d.ang * 0.6)
                 # opening direction: into room a (local -y) or b (local +y)
                 sgn = (-1 if into_a else 1) * hs
                 lrot = rot + sgn * ang
                 # leaf mesh is built with y from 0..LEAF_T; when the hinge sits on the b side, flip the leaf
-                ob = lib.place(lkey, lambda: D.leaf_mesh(lw, d.h, style, hs, skip_back=ext), coll,
-                               f"Door_{d.a.split('.')[1]}_{'to_' + d.b.split('.')[-1]}_{gi}_{li}",
-                               (hxw, hyw, g.z0 + 0.01), lrot if into_a else lrot, parent,
+                leaf_name = f"DoorLeaf_{gi:03d}_{li}"
+                ob = lib.place(lkey, lambda: D.leaf_mesh(lw, lh, style, hs, skip_back=ext), coll, leaf_name,
+                               (hxw, hyw, g.z0 + 0.006), lrot if into_a else lrot, parent,
                                props={"door": True, "open_angle_deg": float(d.ang), "hinge": "left" if hs > 0 else "right",
                                       "opens_into": d.a if into_a else d.b, "locked": d.kind in ("metal",) and d.ang == 0,
                                       "type": d.kind})
                 if not into_a:
-                    ob.location = (*D.to_world(g, hx, T - D.LEAF_T), g.z0 + 0.01)
+                    ob.location = (*D.to_world(g, hx, T - D.LEAF_T), g.z0 + 0.006)
+                B.game_doors.append({"name": leaf_name, "door": gi, "leaf": li, "hinge": tuple(ob.location),
+                                     "rot": lrot, "open_sign": sgn, "width": lw, "height": lh, "thick": D.LEAF_T,
+                                     "hinge_sign": hs, "kind": d.kind, "style": style, "level": lvl,
+                                     "a": d.a, "b": d.b, "double": double, "ext": ext})
                 B.stats["Doors"] = B.stats.get("Doors", 0) + lib.meshes[lkey][1]
                 count += 1
         elif d.kind in ("window", "port"):
@@ -83,11 +97,11 @@ def build_doors(B):
         if d.sign and d.kind in FRAMED and d.b != "EXT":
             ra, rb = B.plan.rooms[d.a], B.plan.rooms[d.b]
             if ra.num and (rb.kind in CORRIDORISH or not rb.num):
-                key, y_local, facing = d.a, T + 0.004, +1
+                key, y_local, facing = d.a, T + 0.007, +1
             elif rb.num and (ra.kind in CORRIDORISH or not ra.num):
-                key, y_local, facing = d.b, -0.004, -1
+                key, y_local, facing = d.b, -0.007, -1
             else:
-                key, y_local, facing = d.a, T + 0.004, +1
+                key, y_local, facing = d.a, T + 0.007, +1
             if key in boxes:
                 latch = +1 if d.hinge == "l" else -1
                 xl = latch * (g.ow / 2 + D.CASE_W + 0.22)

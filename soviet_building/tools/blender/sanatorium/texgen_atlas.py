@@ -1175,9 +1175,11 @@ def build_furniture_atlas(out, seed=500):
         rough[y0:y1, x0:x1] = r
         metal[y0:y1, x0:x1] = t.metal
         grime_mask[y0:y1, x0:x1] = t.grime
-    # very light patina only: the sanatorium is clean and in daily use
+    # light grime and dust on everything except lamps and mirrors (fine grain is added by save_set)
     g = spectral(H, W, 1.8, seed + 1)
-    rgb = rgb * (1 - 0.04 * g[..., None] * grime_mask[..., None])
+    dust = smooth(0.6, 0.9, spectral(H, W, 2.2, seed + 2))
+    rgb = rgb * (1 - 0.1 * g[..., None] * grime_mask[..., None])
+    rgb = rgb * (1 - 0.08 * dust[..., None] * grime_mask[..., None]) + col("#8a8476") * 0.08 * dust[..., None] * grime_mask[..., None]
     save_set(out, "T_Atlas_Furniture", np.clip(rgb, 0, 1), rough, ao=cavity_ao(hgt, 3, 1.5), height=hgt,
              nstrength=4.0, metal=metal)
 
@@ -1304,44 +1306,103 @@ def d_curtain(t):
     t.img = Image.fromarray(np.dstack([to8(rgb), np.full((h, w), 255, np.uint8)]), "RGBA"); t.d = ImageDraw.Draw(t.img)
 
 
+DRY = ["#6a5a2a", "#7a6632", "#5c4a24", "#86703a", "#4e5428", "#5a6a2e", "#94784a"]   # mostly dead foliage
+
+
 def d_plant(t, kind):
+    """Dying house plants: brown and olive leaves, drooping, a few still green."""
     w, h = t.w, t.h
-    if kind == 3:      # fan palm (tall)
+    pick = lambda: c8(DRY[t.r.integers(len(DRY))], 255)
+    if kind == 3:      # fan palm (tall): fronds browned, several hanging down
         for k in range(9):
-            a = -np.pi / 2 + (k - 4) * 0.33
+            droop = t.r.random() < 0.45
+            a = -np.pi / 2 + (k - 4) * 0.33 + (0.9 * np.sign(k - 4 + 0.1) if droop else 0)
             x0, y0 = w / 2, h - 10
-            xm, ym = w / 2 + (k - 4) * 6, h * 0.45
-            x1, y1 = xm + np.cos(a) * 110, ym + np.sin(a) * 120
+            xm, ym = w / 2 + (k - 4) * 6, h * 0.45 + (40 if droop else 0)
             t.d.line([(x0, y0), (xm, ym)], fill=c8("#5a4a2a", 255), width=4)
+            col = pick()
             for j in range(9):
+                if t.r.random() < 0.25:
+                    continue                      # missing leaflets
                 b = a + (j - 4) * 0.16
-                t.d.line([(xm, ym), (xm + np.cos(b) * 105, ym + np.sin(b) * 115)],
-                         fill=c8(["#2e5a26", "#3e6a2a", "#4a7a32"][j % 3], 255), width=5)
-            t.d.line([(xm, ym), (x1, y1)], fill=c8("#2a4a22", 255), width=2)
+                L = t.r.uniform(70, 110)
+                t.d.line([(xm, ym), (xm + np.cos(b) * L, ym + np.sin(b) * L * 1.05)], fill=col, width=4)
         return
-    if kind == 4:      # flowering geranium bush
-        for k in range(40):
-            x, y = t.r.uniform(40, 216), t.r.uniform(60, 240)
-            t.d.ellipse([x - 16, y - 12, x + 16, y + 12], fill=c8(["#3e6a2a", "#4e7a32", "#2e5a26"][k % 3], 255))
-        for k in range(14):
-            x, y = t.r.uniform(50, 206), t.r.uniform(50, 190)
+    if kind == 4:      # geranium: dry leaves, a few faded flowers
+        for k in range(30):
+            x, y = t.r.uniform(40, 216), t.r.uniform(80, 240)
+            t.d.ellipse([x - 15, y - 10, x + 15, y + 10], fill=pick())
+        for k in range(5):
+            x, y = t.r.uniform(60, 196), t.r.uniform(70, 170)
             for j in range(5):
                 a = j * 2 * np.pi / 5
-                t.d.ellipse([x + 6 * np.cos(a) - 5, y + 6 * np.sin(a) - 5, x + 6 * np.cos(a) + 5, y + 6 * np.sin(a) + 5],
-                            fill=c8(["#d83a3a", "#e85a6a", "#c82a3a"][k % 3], 255))
+                t.d.ellipse([x + 5 * np.cos(a) - 4, y + 5 * np.sin(a) - 4, x + 5 * np.cos(a) + 4, y + 5 * np.sin(a) + 4],
+                            fill=c8(["#9a5a52", "#8a4a44", "#a87060"][k % 3], 255))
         return
-    for k in range(26 if kind == 1 else 14):
-        a = t.r.uniform(-2.6, -0.5)
-        L = t.r.uniform(60, 120)
+    for k in range(18 if kind == 1 else 11):
+        a = t.r.uniform(-2.4, -0.7)
+        if t.r.random() < 0.4:
+            a = t.r.choice([t.r.uniform(-0.6, 0.3), t.r.uniform(-3.4, -2.6)])     # wilted, bent sideways
+        L = t.r.uniform(55, 110)
         x0, y0 = w / 2 + t.r.uniform(-10, 10), h - 10
-        x1, y1 = x0 + np.cos(a) * L * 1.2, y0 + np.sin(a) * L * 1.6
-        cc = c8(["#2e4a22", "#3e5a2a", "#4e6a32", "#5a6a2a"][t.r.integers(4)], 255)
+        x1, y1 = x0 + np.cos(a) * L * 1.2, y0 + np.sin(a) * L * 1.5
+        cc = pick()
         if kind == 1:
-            t.d.polygon([(x0, y0), ((x0 + x1) / 2 - 14, (y0 + y1) / 2), (x1, y1), ((x0 + x1) / 2 + 14, (y0 + y1) / 2)],
+            t.d.polygon([(x0, y0), ((x0 + x1) / 2 - 11, (y0 + y1) / 2), (x1, y1), ((x0 + x1) / 2 + 11, (y0 + y1) / 2)],
                         fill=cc)
         else:
-            t.d.line([(x0, y0), (x1, y1)], fill=c8("#3a4a22", 255), width=3)
-            t.d.ellipse([x1 - 22, y1 - 14, x1 + 22, y1 + 14], fill=cc)
+            t.d.line([(x0, y0), (x1, y1)], fill=c8("#5a4a2a", 255), width=3)
+            t.d.ellipse([x1 - 18, y1 - 11, x1 + 18, y1 + 11], fill=cc)
+
+
+def d_cobweb(t):
+    w, h = t.w, t.h
+    img = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    cx, cy = w * 0.5, h * 0.04        # anchored at the top centre (the corner line)
+    col = (226, 224, 216)
+    rays = [np.pi * (0.05 + 0.9 * k / 11) for k in range(12)]
+    for a in rays:
+        d.line([(cx, cy), (cx + np.cos(a) * w * 0.62, cy + np.sin(a) * h * 0.95)], fill=col + (150,), width=1)
+    for ring in range(1, 14):
+        r = ring * 0.072
+        pts = [(cx + np.cos(a) * w * 0.62 * r * t.r.uniform(0.9, 1.08), cy + np.sin(a) * h * 0.95 * r * t.r.uniform(0.9, 1.08))
+               for a in rays]
+        for p0, p1 in zip(pts[:-1], pts[1:]):
+            d.line([p0, p1], fill=col + (int(120 - ring * 5),), width=1)
+    for k in range(6):                # loose strands and dust lumps
+        x = t.r.uniform(0.2, 0.8) * w
+        d.line([(x, cy + t.r.uniform(0, 60)), (x + t.r.uniform(-30, 30), h * t.r.uniform(0.5, 0.9))], fill=col + (90,), width=1)
+        d.ellipse([x - 3, h * 0.5 - 3, x + 3, h * 0.5 + 3], fill=(170, 166, 156, 110))
+    t.img = img.filter(ImageFilter.GaussianBlur(0.4)); t.d = ImageDraw.Draw(t.img)
+
+
+def d_dust_patch(t):
+    n = spectral(t.h, t.w, 1.6, t.seed)
+    yy, xx = np.mgrid[0:t.h, 0:t.w]
+    r = np.sqrt(((xx - t.w / 2) / (t.w / 2)) ** 2 + ((yy - t.h / 2) / (t.h / 2)) ** 2)
+    al = np.clip(smooth(1.0, 0.25, r) * (0.15 + 0.35 * n), 0, 0.42)
+    rgb = col("#8a8478")[None, None, :] * np.ones((t.h, t.w, 1)) * (0.9 + 0.2 * n[..., None])
+    t.img = Image.fromarray(np.dstack([to8(rgb), to8(al)]), "RGBA"); t.d = ImageDraw.Draw(t.img)
+
+
+def d_leaves_dry(t):
+    for k in range(16):
+        x, y = t.r.uniform(20, t.w - 20), t.r.uniform(15, t.h - 15)
+        a = t.r.uniform(0, np.pi)
+        L, W_ = t.r.uniform(10, 22), t.r.uniform(4, 8)
+        pts = [(x + np.cos(a) * L, y + np.sin(a) * L), (x - np.sin(a) * W_, y + np.cos(a) * W_),
+               (x - np.cos(a) * L, y - np.sin(a) * L), (x + np.sin(a) * W_, y - np.cos(a) * W_)]
+        t.d.polygon(pts, fill=c8(DRY[t.r.integers(len(DRY))], 255))
+
+
+def d_stain_small(t):
+    m = blobs(t.h, t.w, 2, t.seed, 18, 40)
+    yy, xx = np.mgrid[0:t.h, 0:t.w]
+    r = np.sqrt(((xx - t.w / 2) / (t.w / 2)) ** 2 + ((yy - t.h / 2) / (t.h / 2)) ** 2)
+    al = np.clip(m * 0.55 * smooth(1.0, 0.6, r), 0, 0.5)
+    rgb = col("#3a2e20")[None, None, :] * np.ones((t.h, t.w, 1))
+    t.img = Image.fromarray(np.dstack([to8(rgb), to8(al)]), "RGBA"); t.d = ImageDraw.Draw(t.img)
 
 
 def d_chair_legs(t, tube):
@@ -1531,6 +1592,7 @@ def build_decal_atlas(out, seed=900):
                                                                    "с сопровождающим.", "Дежурная: тел. 2-15"], 20, 12),
         "plant_1": lambda t: d_plant(t, 1), "plant_2": lambda t: d_plant(t, 2),
         "plant_3": lambda t: d_plant(t, 3), "plant_4": lambda t: d_plant(t, 4),
+        "cobweb": d_cobweb, "dust_patch": d_dust_patch, "leaves_dry": d_leaves_dry, "stain_small": d_stain_small,
         "chair_legs_wood": lambda t: d_chair_legs(t, False), "chair_legs_tube": lambda t: d_chair_legs(t, True),
         "bed_head_tube": d_bed_head, "railing": d_railing, "wheel": d_wheel,
         "papers_1": lambda t: d_papers(t, 3),

@@ -32,6 +32,7 @@ MATS = {
     "emit_fluo": ("M_Emissive_Fluorescent", None, 1.0, {"emit": (1.0, 0.94, 0.84), "strength": 6.0}),
     "emit_warm": ("M_Emissive_Incandescent", None, 1.0, {"emit": (1.0, 0.8, 0.56), "strength": 5.0}),
     "emit_shade": ("M_Emissive_LampShade", None, 1.0, {"emit": (1.0, 0.76, 0.46), "strength": 1.6}),
+    "emit_off": ("M_Lamp_Off", None, 1.0, {"color": (0.62, 0.61, 0.58), "rough": 0.25}),
     "lift_lamp": ("M_Emissive_LiftLamp", None, 1.0, {"emit": (1.0, 0.25, 0.1), "strength": 3.0}),
 }
 UV_SCALE = {k: v[2] for k, v in MATS.items()}

@@ -394,7 +394,32 @@ def build_plan():
     for x in (28.0, 29.0):
         P.door(2, "F9", "L1.EB_HALL", x, w=0.32, kind="port", sill=1.15, h=0.26, axis="x", sign=False)
     renumber(P)
+    enlarge_doors(P)
     return P
+
+
+HINGED = {"std", "glazed", "double", "double_glazed", "metal", "metal_glazed", "wide", "padded", "wc_door"}
+DOOR_W = {0.7: 0.9, 0.8: 0.9, 0.9: 1.0, 1.0: 1.1, 1.1: 1.2, 1.2: 1.3, 1.3: 1.5, 1.35: 1.5, 1.4: 1.6}
+
+
+def enlarge_doors(P):
+    """Generous Soviet public-building doors: 2.3 m high, every passage door at least 0.9 m wide
+    (an electric wheelchair passes everywhere), main room doors 1.0 m, double doors 1.5-1.6 m."""
+    from .layout import Layout
+    orig = {}
+    for d in P.doors:
+        if d.kind in HINGED:
+            orig[id(d)] = d.w
+            d.w = DOOR_W.get(round(d.w, 2), d.w)
+            if abs(d.h - 2.1) < 1e-6:
+                d.h = 2.3
+    # where a wider door no longer fits beside a pilaster (narrow passages of split bays), keep the
+    # original width (0.8 m leaf + clearance: still 0.86 m clear when open)
+    lay = Layout(P)
+    resolved = {id(g.door) for g in lay.doors}
+    for d in P.doors:
+        if id(d) in orig and id(d) not in resolved:
+            d.w = orig[id(d)]
 
 
 def renumber(P):
@@ -455,7 +480,8 @@ def patient_floor(P, L):
                wall="tile_wall", floor="tile_floor")
         P.door(L, key, "C", cxo, w=0.9)
         y0, y1 = i[0][2], i[0][3]
-        P.door(L, key + "b", key, (y0 + y1) / 2, w=0.7, kind="wc_door", axis="y", sign=False, swing="b")
+        far = y0 + 0.62 if side == FRONT else y1 - 0.62      # door at the window-side end of the bathroom
+        P.door(L, key + "b", key, far, w=0.7, kind="wc_door", axis="y", sign=False, swing="b")
 
     # ---- front side ----
     for k in (0, 2, 4, 6):

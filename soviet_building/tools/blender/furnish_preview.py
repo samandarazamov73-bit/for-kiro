@@ -50,6 +50,7 @@ class FakeB:
         self.stats = {}
         self.room_empty = {rid: rid for rid in self.plan.rooms}
         self.meshes = []
+        self.game_items, self.game_boxes, self.game_doors = [], [], []
         self.radiators = architecture.window_parts(self.lay, MB("r"), MB("s"))
 
     def coll_for(self, rid):

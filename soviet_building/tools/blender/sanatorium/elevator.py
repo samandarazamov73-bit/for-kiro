@@ -56,12 +56,16 @@ def landing(level, open_=False):
     um = (u0 + u1) / 2
     yd = ys + 0.06
     sh = w / 2 if open_ else 0.0
-    for (x0, x1, ua, ub) in ((cx - w / 2 - 0.02 - sh, cx - sh, u0, um), (cx + sh, cx + w / 2 + 0.02 + sh, um, u1)):
+    leaves = []
+    for side, (x0, x1, ua, ub) in (("L", (cx - w / 2 - 0.02 - sh, cx - sh, u0, um)),
+                                   ("R", (cx + sh, cx + w / 2 + 0.02 + sh, um, u1))):
+        lf = MB(f"LiftDoor_F{level + 1}_{side}")     # separate object: slides along X by +-w/2 in a game
         uv = [(ua, v0), (ub, v0), (ub, v1), (ua, v1)]
-        mb.poly_n([(x0, yd + 0.03, L), (x1, yd + 0.03, L), (x1, yd + 0.03, L + h), (x0, yd + 0.03, L + h)], uv,
+        lf.poly_n([(x0, yd + 0.03, L), (x1, yd + 0.03, L), (x1, yd + 0.03, L + h), (x0, yd + 0.03, L + h)], uv,
                   "atlas_furn", (0, 1, 0))
-        mb.poly_n([(x0, yd, L), (x1, yd, L), (x1, yd, L + h), (x0, yd, L + h)], R("metal_grey"), "atlas_furn",
+        lf.poly_n([(x0, yd, L), (x1, yd, L), (x1, yd, L + h), (x0, yd, L + h)], R("metal_grey"), "atlas_furn",
                   (0, -1, 0))
+        leaves.append((lf.name, lf, (x0, x1, yd, yd + 0.03, L, L + h), -1 if side == "L" else 1))
     # mechanical floor indicator (semicircular dial) above the portal
     zi = L + h + pw + 0.08
     mb.box(cx - 0.26, cx + 0.26, yc, yc + 0.07, zi, zi + 0.26, "atlas_furn", faces=("-x", "+x", "+z", "-z"),
@@ -88,8 +92,9 @@ def landing(level, open_=False):
     sx = cx - w / 2 - pw - 0.05
     for (x0, x1, z0, z1, reg) in ((sx - 0.5, sx, L + 1.55, L + 1.80, "lift_sign"),
                                    (sx - 0.36, sx - 0.12, L + 1.12, L + 1.44, "lift_rules")):
-        face_y(dec, x0, x1, z0, z1, yc + 0.004, (0, 1, 0), "atlas_decal", RD(reg))
-    return mb, dec
+        face_y(dec, x0, x1, z0, z1, yc + 0.008, (0, 1, 0), "atlas_decal", RD(reg))
+    button = (kx, yc + 0.04, pz0 + 0.5 * (1 - 180 / 512))
+    return mb, dec, leaves, button
 
 
 def _knob(mb, x, y, z, r, depth, region, sides=8):
@@ -136,17 +141,26 @@ def cabin(floor_z, open_=True):
            regions={"*": "metal_grey"})
     for (a, b, za, zb) in ((X0, dx0, z0 - 0.15, Z1), (dx1, X1, z0 - 0.15, Z1), (dx0, dx1, z0 + LIFT_DOOR_H, Z1)):
         mb.poly_n([(a, Y1, za), (b, Y1, za), (b, Y1, zb), (a, Y1, zb)], R("metal_grey"), "atlas_furn", (0, 1, 0))
-    mb.poly_n([(dx0, y1, z0), (dx1, y1, z0), (dx1, Y1, z0), (dx0, Y1, z0)], R("aluminium"), "atlas_furn", (0, 0, 1))
+    # cabin sill reaches the landing sill (no gap to fall into)
+    mb.poly_n([(dx0, y1, z0), (dx1, y1, z0), (dx1, SY1 - 0.06, z0), (dx0, SY1 - 0.06, z0)], R("aluminium"), "atlas_furn",
+              (0, 0, 1))
     mb.box(36.8, 37.3, 4.4, 4.8, Z1, Z1 + 0.25, "atlas_furn", faces=("-x", "+x", "-y", "+y", "+z"), uv="region",
            regions={"*": "metal_green", "+y": "fuse_board"})
-    # cabin doors (inside face); open = slid behind the front wall panels
+    # cabin doors as separate objects; open = slid behind the front wall panels
     u0, v0, u1, v1 = FURN_UV["elevator_door"]
     um = (u0 + u1) / 2
     sh = LIFT_DOOR_W / 2 if open_ else 0.0
-    for (a, b, ua, ub) in ((dx0 - 0.02 - sh, LIFT_DOOR_X - sh, u0, um), (LIFT_DOOR_X + sh, dx1 + 0.02 + sh, um, u1)):
+    leaves = []
+    for side, (a, b, ua, ub) in (("L", (dx0 - 0.02 - sh, LIFT_DOOR_X - sh, u0, um)),
+                                 ("R", (LIFT_DOOR_X + sh, dx1 + 0.02 + sh, um, u1))):
+        lf = MB(f"LiftCabDoor_{side}")
         uv = [(ub, v0), (ua, v0), (ua, v1), (ub, v1)]
-        mb.poly_n([(a, y1 + 0.02, z0), (b, y1 + 0.02, z0), (b, y1 + 0.02, z0 + LIFT_DOOR_H), (a, y1 + 0.02, z0 + LIFT_DOOR_H)],
-                  uv, "atlas_furn", (0, -1, 0))
+        yi, yo = y1 + 0.02, y1 + 0.045
+        lf.poly_n([(a, yi, z0), (b, yi, z0), (b, yi, z0 + LIFT_DOOR_H), (a, yi, z0 + LIFT_DOOR_H)], uv, "atlas_furn",
+                  (0, -1, 0))
+        lf.poly_n([(a, yo, z0), (b, yo, z0), (b, yo, z0 + LIFT_DOOR_H), (a, yo, z0 + LIFT_DOOR_H)], R("metal_grey"),
+                  "atlas_furn", (0, 1, 0))
+        leaves.append((lf.name, lf, (a, b, yi, yo, z0, z0 + LIFT_DOOR_H), -1 if side == "L" else 1))
     # control panel on the door wall (inside), right of the opening: buttons 4..1, STOP, CALL, DOOR OPEN
     px0, px1 = dx1 + 0.12, dx1 + 0.28
     pz0, pz1 = z0 + 0.85, z0 + 1.55
@@ -154,10 +168,12 @@ def cabin(floor_z, open_=True):
            regions={"*": "metal_grey"})
     face_y(mb, px0, px1, pz0, pz1, y1 - 0.03, (0, -1, 0), "atlas_furn", R("cabin_panel"))
     pcx = (px0 + px1) / 2
+    buttons = {}
     for i, frac in enumerate((70, 126, 182, 238, 310, 370, 432)):
         zz = pz1 - (pz1 - pz0) * frac / 512
         region = {4: "red_paint", 5: "brass"}.get(i, "black_plastic")
         _knob_neg(mb, pcx, y1 - 0.03, zz, 0.016 if i < 4 else 0.02, 0.01, region)
+        buttons[["4", "3", "2", "1", "stop", "call", "open"][i]] = (pcx, y1 - 0.04, zz)
     # handrails on the back and side walls (accessibility)
     mb.tube_region([(x0 + 0.15, y0 + 0.05, z0 + 0.9), (x1 - 0.15, y0 + 0.05, z0 + 0.9)], 0.018, "chrome", 6, True, True)
     for x, sx in ((x0 + 0.05, 1), (x1 - 0.05, -1)):
@@ -165,7 +181,7 @@ def cabin(floor_z, open_=True):
     # fold-down seat on the left wall
     mb.box(x0, x0 + 0.32, y0 + 0.75, y0 + 1.2, z0 + 0.48, z0 + 0.52, "atlas_furn", faces=("+x", "-y", "+y", "+z", "-z"),
            uv="region", regions={"*": "wood_light"})
-    return mb
+    return mb, leaves, buttons
 
 
 def _remap_tail(mb, nfaces, region):

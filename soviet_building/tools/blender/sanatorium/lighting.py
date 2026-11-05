@@ -1,7 +1,9 @@
 """Ceiling fixtures (glass plafonds, warm-white fluorescent battens in service rooms, bulbs in stores,
 pendants in the club hall), one point light per fixture, extra warm light from floor lamps and wall
-sconces, and soft daylight. Every fixture works: light_state = "on" (exported to glTF extras)."""
+sconces, and soft daylight. Fixture state (glTF extras light_state): "on", "flicker" (works, but the
+tube or contact is failing) or "broken" (dead lamp: no light even when switched on)."""
 import math
+import random
 import bpy
 from .params import *
 from .meshkit import MB
@@ -14,40 +16,43 @@ FLUO_KINDS = ("kitchen", "food_prep", "veg_prep", "distribution", "dishwash", "w
 BULB_KINDS = ("waste", "fridge", "dry_store", "storage", "cleaning_store", "utility", "med_archive",
               "med_supplies", "med_equip", "machine_room", "electrical", "plumbing", "ventilation", "projection",
               "hall_store", "med_storage", "luggage", "dirty_linen", "clean_linen", "coatroom")
+# share of flickering / broken lamps per department (the building is half abandoned)
+STATE_P = {"CIRC": (0.10, 0.12), "P_patient": (0.05, 0.14), "C_medical": (0.08, 0.16), "S_spa": (0.05, 0.12),
+           "A_entrance": (0.06, 0.08), "B_admin": (0.04, 0.12), "D_catering": (0.10, 0.18), "E_technical": (0.10, 0.25)}
 WARM_KINDS = ("salt_room", "massage", "lounge", "library", "phytobar", "suite_double", "suite_single",
               "suite_assisted", "director", "club_hall")
 
 
-def fluo_mesh():
+def fluo_mesh(mat="emit_fluo"):
     mb = MB("Fixture_Fluo")
     w, d, h = FLUO_W / 2, FLUO_D / 2, FLUO_H
     mb.box(-w, w, -d, d, -h, 0, "atlas_furn", faces=("-x", "+x", "-y", "+y"), uv="region", regions={"*": "metal_white"})
-    mb.poly_n([(-w, -d, -h), (w, -d, -h), (w, d, -h), (-w, d, -h)], [(0, 0), (1, 0), (1, 1), (0, 1)], "emit_fluo",
+    mb.poly_n([(-w, -d, -h), (w, -d, -h), (w, d, -h), (-w, d, -h)], [(0, 0), (1, 0), (1, 1), (0, 1)], mat,
               (0, 0, -1))
     return mb
 
 
-def plafond_mesh(r=0.22):
+def plafond_mesh(r=0.22, mat="emit_warm"):
     mb = MB("Fixture_Plafond")
     n = 8
     ring_t = [(r * math.cos(2 * math.pi * k / n), r * math.sin(2 * math.pi * k / n), 0) for k in range(n)]
     ring_b = [(0.8 * r * math.cos(2 * math.pi * k / n), 0.8 * r * math.sin(2 * math.pi * k / n), -0.11) for k in range(n)]
     for k in range(n):
         k2 = (k + 1) % n
-        mb.poly_n([ring_t[k], ring_t[k2], ring_b[k2], ring_b[k]], [(0, 0), (1, 0), (1, 1), (0, 1)], "emit_warm",
+        mb.poly_n([ring_t[k], ring_t[k2], ring_b[k2], ring_b[k]], [(0, 0), (1, 0), (1, 1), (0, 1)], mat,
                   (math.cos(2 * math.pi * (k + .5) / n), math.sin(2 * math.pi * (k + .5) / n), -0.5))
-    mb.poly_n(ring_b, [(0.5, 0.5)] * n, "emit_warm", (0, 0, -1))
+    mb.poly_n(ring_b, [(0.5, 0.5)] * n, mat, (0, 0, -1))
     return mb
 
 
-def bulb_mesh():
+def bulb_mesh(mat="emit_warm"):
     mb = MB("Fixture_Bulb")
     mb.cyl(0, 0, -0.12, 0, 0.035, "atlas_furn", sides=6, top=False, bottom=False, region="black_plastic")
-    mb.cyl(0, 0, -0.22, -0.12, 0.05, "emit_warm", sides=6, top=False, bottom=True)
+    mb.cyl(0, 0, -0.22, -0.12, 0.05, mat, sides=6, top=False, bottom=True)
     return mb
 
 
-def pendant_mesh(drop=2.2):
+def pendant_mesh(drop=2.2, mat="emit_warm"):
     mb = MB("Fixture_Pendant")
     mb.tube_region([(0, 0, 0), (0, 0, -drop)], 0.008, "black_plastic", 4)
     n = 10
@@ -57,9 +62,12 @@ def pendant_mesh(drop=2.2):
         k2 = (k + 1) % n
         mb.poly_n([top[k], top[k2], bot[k2], bot[k]], [(0, 0), (1, 0), (1, 1), (0, 1)], "atlas_furn",
                   (math.cos(2 * math.pi * (k + .5) / n), math.sin(2 * math.pi * (k + .5) / n), 0.6))
-    for k in range(n):  # inner side, emissive (lit shade)
+    # inner side, emissive (lit shade), 1 cm inside the outer shell so the two never Z-fight
+    it = [(0.072 * math.cos(2 * math.pi * k / n), 0.072 * math.sin(2 * math.pi * k / n), -drop - 0.008) for k in range(n)]
+    ib = [(0.308 * math.cos(2 * math.pi * k / n), 0.308 * math.sin(2 * math.pi * k / n), -drop - 0.245) for k in range(n)]
+    for k in range(n):
         k2 = (k + 1) % n
-        mb.poly_n([top[k2], top[k], bot[k], bot[k2]], [(0, 0), (1, 0), (1, 1), (0, 1)], "emit_warm",
+        mb.poly_n([it[k2], it[k], ib[k], ib[k2]], [(0, 0), (1, 0), (1, 1), (0, 1)], mat,
                   (-math.cos(2 * math.pi * (k + .5) / n), -math.sin(2 * math.pi * (k + .5) / n), -0.6))
     return mb
 
@@ -133,22 +141,41 @@ def _light(B, coll, parent, name, loc, energy, color, size=0.15):
     return lo
 
 
+def lamp_state(rng, r):
+    fl, br = STATE_P.get(r.dept, (0.06, 0.12))
+    if r.kind in ("hall", "vestibule", "stair_main", "stair_end"):
+        fl, br = fl, br * 0.5
+    x = rng.random()
+    return "broken" if x < br else ("flicker" if x < br + fl else "on")
+
+
 def build_lights(B):
     lights = fixtures = 0
+    rng = random.Random(1979)
+    B.game_fixtures = []
     for r in B.plan.rooms.values():
         warm = 1.12 if r.kind in WARM_KINDS else 1.0
         tint = (1.0, 0.72, 0.48) if r.kind == "salt_room" else None
         for i, (kind, x, y, zc, rot) in enumerate(fixtures_for_room(r)):
             coll = B.coll_for(r.rid)
             parent = B.room_empty[r.rid]
-            key = f"Fixture_{kind}"
-            B.lib.place(key, BUILDERS[kind], coll, f"Light_{kind}_{r.rid.split('.')[1]}", (x, y, zc), rot, parent,
-                        props={"light_state": "on", "fixture": kind})
+            st = lamp_state(rng, r)
+            key = f"Fixture_{kind}" + ("_off" if st == "broken" else "")
+            off = st == "broken"
+            build = (lambda k=kind: BUILDERS[k](mat="emit_off")) if off else BUILDERS[kind]
+            name = f"Fix_{fixtures:04d}"
+            B.lib.place(key, build, coll, name, (x, y, zc), rot, parent, props={"light_state": st, "fixture": kind})
             B.stats["Lights"] = B.stats.get("Lights", 0) + B.lib.meshes[key][1]
             fixtures += 1
             room_h = r.z1 - r.z0
             e = ENERGY[kind] * warm * (1.0 if room_h < 3.5 or kind == "pendant" else 1.3)
-            _light(B, coll, parent, f"{r.rid.split('.')[1]}_{lights}", (x, y, zc - DROP[kind]), e, tint or COLOR[kind])
+            col = tint or COLOR[kind]
+            B.game_fixtures.append({"name": name, "room": r.rid, "kind": kind, "state": st, "energy": e, "color": col,
+                                    "pos": (x, y, zc - DROP[kind]), "mount": (x, y, zc)})
+            if off:
+                continue
+            _light(B, coll, parent, f"{r.rid.split('.')[1]}_{lights}", (x, y, zc - DROP[kind]),
+                   e * (0.75 if st == "flicker" else 1.0), col)
             lights += 1
     # warm pools of light from floor lamps and wall sconces placed by the furnishing
     extra = 0
@@ -164,6 +191,8 @@ def build_lights(B):
             dx, dy = 0.17 * s, -0.17 * c          # local -Y (into the room)
             loc, e = (ob.location[0] + dx, ob.location[1] + dy, ob.location[2] + 0.17), 12.0
         _light(B, ob.users_collection[0], ob.parent, f"{ob.name}_glow", loc, e, (1.0, 0.76, 0.5), 0.08)
+        B.game_fixtures.append({"name": ob.name, "room": ob.get("room_id", ""), "kind": "lamp", "state": "on",
+                                "energy": e, "color": (1.0, 0.76, 0.5), "pos": tuple(loc), "mount": tuple(ob.location)})
         extra += 1
     B.stats["light_fixtures"] = fixtures
     B.stats["point_lights"] = lights + extra

@@ -10,7 +10,8 @@ from .params import *
 
 CASE_W, CASE_T = 0.07, 0.015
 LEAF_T = 0.04
-GAP = 0.05          # jamb lining width each side (opening = leaf + 2*GAP)
+GAP = 0.006         # clearance between leaf and jamb lining each side (opening = leaf + 2*GAP)
+STOP_W, STOP_T = 0.022, 0.015   # door stop strip on the jamb, against the closed leaf
 
 
 def rot_for(axis, nab):
@@ -30,8 +31,9 @@ def ruv(region):
     return [(u0, v0), (u1, v0), (u1, v1), (u0, v1)]
 
 
-def frame_mesh(ow, oh, T, mat, region=None):
-    """Casing on both faces + jamb lining through the wall. 9 quads."""
+def frame_mesh(ow, oh, T, mat, region=None, stop=None):
+    """Casing on both faces + jamb lining through the wall (9 quads), plus a door stop strip at
+    y = stop (y0, y1) on both jambs and the head, covering the clearance gap of the closed leaf."""
     mb = MB("frame")
     h, w2 = oh, ow / 2
     uv = (lambda: ruv(region)) if region else None
@@ -48,6 +50,16 @@ def frame_mesh(ow, oh, T, mat, region=None):
         q([(-w2 - CASE_W, yf, 0), (-w2, yf, 0), (-w2, yf, h), (-w2 - CASE_W, yf, h)], want)
         q([(w2, yf, 0), (w2 + CASE_W, yf, 0), (w2 + CASE_W, yf, h), (w2, yf, h)], want)
         q([(-w2 - CASE_W, yf, h), (w2 + CASE_W, yf, h), (w2 + CASE_W, yf, h + CASE_W), (-w2 - CASE_W, yf, h + CASE_W)], want)
+    if stop:
+        sy0, sy1 = stop
+        sw = STOP_W
+        for (x0, x1, z0, z1) in ((-w2, -w2 + sw, 0.0, h), (w2 - sw, w2, 0.0, h), (-w2, w2, h - sw, h)):
+            faces = []
+            if x0 > -w2 + 1e-6 or x1 < w2 - 1e-6:
+                faces = ["-y", "+y", "+x" if x0 <= -w2 + 1e-6 else "-x"]
+            else:
+                faces = ["-y", "+y", "-z"]
+            mb.box(x0, x1, sy0, sy1, z0, z1, mat, faces=faces, uv="region", regions={"*": region or "wood_dark"})
     return mb
 
 

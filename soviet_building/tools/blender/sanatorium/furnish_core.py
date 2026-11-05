@@ -20,6 +20,9 @@ from . import furniture as F
 
 EPS = 1e-6
 WALL_GAP = 0.12        # minimum horizontal gap between two wall-hung items
+GLOW_KEYS = ("table_lamp", "floor_lamp", "sconce")          # lamps switched with the room light in the game
+JITTER_KEYS = ("chair", "chair_tube", "chair_soft", "chair_green", "stool", "armchair", "armchair_red",
+               "armchair_beige", "chair_wood")                # left slightly askew (the building is half abandoned)
 _INFO = {}
 
 
@@ -241,12 +244,23 @@ class Ctx:
     def _place(self, key, u, v, facing, z, props=None):
         x, y = self.l2w(u, v)
         build = F.MODS[key][0]
-        ob = self.B.lib.place(key, build, self.B.coll_for(self.room.rid), f"{key}_{self.room.rid.split('.')[1]}",
-                              (x, y, self.z0 + z), self.rot(facing), self.B.room_empty[self.room.rid], props)
+        rot = self.rot(facing)
+        if key in JITTER_KEYS and self.rng.random() < 0.65:
+            rot += self.rng.uniform(-0.15, 0.15)
+        name = f"{key}_{self.room.rid.split('.')[1]}"
+        if key in GLOW_KEYS:
+            n = self.B.stats.get("glow_n", 0)
+            self.B.stats["glow_n"] = n + 1
+            name = f"Glow_{n:04d}"
+            props = dict(props or {}, room_id=self.room.rid, lamp=key)
+        ob = self.B.lib.place(key, build, self.B.coll_for(self.room.rid), name,
+                              (x, y, self.z0 + z), rot, self.B.room_empty[self.room.rid], props)
         tris = mod_info(key)[2]
         self.B.stats["Furniture"] = self.B.stats.get("Furniture", 0) + tris
         self.B.stats["furniture_items"] = self.B.stats.get("furniture_items", 0) + 1
-        self.placed.append((ob, tris))
+        log = {"key": key, "room": self.room.rid, "name": name, "pos": (x, y, self.z0 + z), "rot": rot}
+        self.B.game_items.append(log)
+        self.placed.append((ob, tris, log))
         return ob
 
     def begin(self):
@@ -257,16 +271,17 @@ class Ctx:
 
     def rollback(self):
         nb, ni, nw, npl = self._tx.pop()
-        for ob, tris in self.placed[npl:]:
+        for ob, tris, log in self.placed[npl:]:
             self.B.lib.remove(ob)
             self.B.stats["Furniture"] -= tris
             self.B.stats["furniture_items"] -= 1
+            self.B.game_items.remove(log)
         del self.busy[nb:], self.items[ni:], self.wall_items[nw:], self.placed[npl:]
-        alive = {id(ob) for ob, _ in self.placed}
+        alive = {id(ob) for ob, _, _ in self.placed}
         for it in self.items:
             it.kids = [k for k in it.kids if id(k[1]) in alive]
 
-    def at(self, key, u, v, facing="+v", z=0.0, check=True, props=None, foot=None):
+    def at(self, key, u, v, facing="+v", z=0.0, check=True, props=None, foot=None, cover_ok=False):
         """Floor (or raised) item with a centred footprint."""
         assert key not in F.WALL, key
         _, fw, fd = F.MODS[key]
@@ -278,7 +293,7 @@ class Ctx:
         top = mod_info(key)[1]
         if check:
             why = "outside" if not self.inside(r) else ("busy" if not self.free(r) else (
-                "covers" if self._covers_wall_item(r, top, z) else None))
+                "covers" if not cover_ok and self._covers_wall_item(r, top, z) else None))
             if why:
                 self.fails.append((key, u, v, why))
                 return None
@@ -538,6 +553,8 @@ def place_radiators_and_curtains(B):
         build, _, _ = F.MODS[key]
         B.lib.place(key, build, B.coll_for(room.rid), f"Radiator_{room.rid.split('.')[1]}", (x, y, floor), rot,
                     B.room_empty[room.rid])
+        B.game_boxes.append({"room": room.rid, "center": (x, y, floor + 0.4), "size": (F.MODS[key][1] + 0.02, 0.14, 0.62),
+                             "rot": rot, "key": key})
         B.stats["Radiators"] = B.stats.get("Radiators", 0) + mod_info(key)[2]
         if w.kind == "std" and (room.kind in curtain_kinds or room.kind in tulle_only):
             cx, cy = (w.s, w.face + inward * 0.10) if w.axis == "x" else (w.face + inward * 0.10, w.s)

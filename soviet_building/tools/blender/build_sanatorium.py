@@ -62,6 +62,8 @@ class Build:
         if errs:
             raise SystemExit("plan errors:\n" + "\n".join(errs))
         self.stats = {}
+        self.game_items, self.game_boxes, self.game_doors, self.game_fixtures = [], [], [], []
+        self.game_lift = None
 
     def import_exterior(self):
         bpy.ops.wm.read_factory_settings(use_empty=True)
@@ -169,7 +171,14 @@ class Build:
         parent.update(E.props()) if hasattr(parent, "update") else None
         for k, v in E.props().items():
             parent[k] = v
-        cab = self.add(E.cabin(FFL), shaft.rid, name="Lift_Cabin", props=E.props(), group="Elevator")
+        cab_mb, cab_leaves, cab_buttons = E.cabin(FFL, open_=True)
+        cab = self.add(cab_mb, shaft.rid, name="Lift_Cabin", props=E.props(), group="Elevator")
+        lift = {"cabin": "Lift_Cabin", "cab": E.CAB, "door_w": LIFT_DOOR_W, "door_h": LIFT_DOOR_H, "door_x": LIFT_DOOR_X,
+                "shaft": SHAFT, "levels": LEVELS, "parked": 0, "cab_buttons": cab_buttons, "cab_doors": [],
+                "landings": [], "light": [37.5, 5.15, FFL + 2.0]}
+        for name, lf, box, sgn in cab_leaves:
+            self.add(lf, shaft.rid, name=name, group="Elevator")
+            lift["cab_doors"].append({"name": name, "box": box, "dir": sgn, "open": True})
         self.add(E.shaft_equipment(), shaft.rid, name="Lift_Shaft_Equipment", group="Elevator")
         self.add(E.machine_room(), "L0.F12", name="Lift_Machine", group="Elevator")
         ld = bpy.data.lights.new("PL_LiftCabin", "POINT")
@@ -179,10 +188,16 @@ class Build:
         self.coll_for(shaft.rid).objects.link(lo)
         lo.parent = parent
         for lvl in range(4):
-            mb, dec = E.landing(lvl, open_=(lvl == 0))
+            mb, dec, leaves, button = E.landing(lvl, open_=(lvl == 0))
             p = dict(E.props()); p["landing_level"] = lvl + 1
             self.add(mb, level=lvl, name=f"Lift_Landing_Floor{lvl + 1}", props=p, group="Elevator")
             self.add(dec, level=lvl, name=f"Lift_Signs_Floor{lvl + 1}", group="Signs")
+            land = {"level": lvl, "button": button, "doors": []}
+            for name, lf, box, sgn in leaves:
+                self.add(lf, level=lvl, name=name, group="Elevator")
+                land["doors"].append({"name": name, "box": box, "dir": sgn, "open": lvl == 0})
+            lift["landings"].append(land)
+        self.game_lift = lift
 
     def lights(self):
         from sanatorium.lighting import build_lights
@@ -258,6 +273,20 @@ class Build:
         for f in ("SovietSanatorium.glb", "SovietSanatorium_Interior.glb", "fbx/SovietSanatorium.fbx"):
             p = os.path.join(exp, f)
             print(f"{f}: {os.path.getsize(p) / 1e6:.1f} MB")
+        self.export_game()
+
+    def export_game(self):
+        """Godot game assets: the whole building without lights (the game creates them) + level.json."""
+        from sanatorium.game_export import export_level
+        gdir = os.path.join(self.root, "game", "assets")
+        os.makedirs(gdir, exist_ok=True)
+        bpy.ops.object.select_all(action="DESELECT")
+        bpy.ops.export_scene.gltf(filepath=os.path.join(gdir, "sanatorium.glb"), export_format="GLB",
+                                  export_image_format="JPEG", export_jpeg_quality=90, export_extras=False,
+                                  export_lights=False, export_animations=False, export_yup=True, export_apply=False,
+                                  export_cameras=False)
+        counts = export_level(self, os.path.join(gdir, "level.json"))
+        print("game:", json.dumps(counts), f"{os.path.getsize(os.path.join(gdir, 'sanatorium.glb')) / 1e6:.1f} MB")
 
     def report(self):
         tot = 0

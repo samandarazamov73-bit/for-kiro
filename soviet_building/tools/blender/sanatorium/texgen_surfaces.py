@@ -53,14 +53,16 @@ def paint_wall(name, out, dado, upper, seed, dado_top=1.5, line="#4f4a3f", skirt
     rough[chip_m] = 0.92
     height[chip_m] -= 0.1
     # scuffs and dirt smudges
-    sc = scratches(h, w, 20, seed + 6, length=(0.01, 0.04), width=1, angle=0.0)
+    sc = scratches(h, w, 70, seed + 6, length=(0.01, 0.05), width=1, angle=0.0)
     sc *= (z < 1.0) & (z > 0.12)
-    base *= (1 - 0.08 * sc[..., None])
+    base *= (1 - 0.2 * sc[..., None])
     dirt = blur(spectral(h, w, 1.8, seed + 7), 2) * smooth(0.9, 0.0, z)
-    base *= (1 - 0.04 * dirt[..., None])
+    base *= (1 - 0.12 * dirt[..., None])
+    stain = blobs(h, w, 2, seed + 9, 40, 100) * smooth(2.2, 2.95, z)
+    base = mix_col(np.clip(stain * 0.14, 0, 0.14), base, col("#9a8458"))
     # upper part: hairline cracks, water stains under the ceiling, dust darkening at the top
-    top = smooth(2.75, 3.0, z)
-    base *= (1 - 0.03 * top[..., None])
+    top = smooth(2.6, 3.0, z)
+    base *= (1 - 0.08 * top[..., None])
     ao = np.clip(cavity_ao(height, 4, 2.0) * (1 - 0.15 * smooth(0.25, 0.0, z)) * (1 - 0.1 * top), 0, 1)
     save_set(out, name, np.clip(base, 0, 1), np.clip(rough, 0.05, 1), ao=ao, height=height, nstrength=3.0)
 
@@ -83,7 +85,7 @@ def tile_wall(name, out, seed, tile_top=1.5, upper="#d9dcd2"):
     # tile bevel
     bev = smooth(0.0, 0.012, np.minimum(np.minimum(gx, t - gx), np.minimum(gy, t - gy)))
     height = bev * 0.8
-    base[grout] = col("#8f8a7c") * (0.8 + 0.3 * n2[grout, None])
+    base[grout] = col("#7a7468") * (0.75 + 0.3 * n2[grout, None])
     rough[grout] = 0.9
     # a few replaced tiles in a slightly different white, some cracked / missing
     odd = r.random((40, 40))
@@ -101,7 +103,7 @@ def tile_wall(name, out, seed, tile_top=1.5, upper="#d9dcd2"):
     base[sk] = col("#6b5a4a") * (0.9 + 0.2 * n1[sk, None])
     height[sk] = 0.9
     dirt = blur(spectral(h, w, 1.8, seed + 4), 2) * smooth(1.0, 0.0, z)
-    base *= (1 - 0.04 * dirt[..., None])
+    base *= (1 - 0.12 * dirt[..., None])
     save_set(out, name, np.clip(base, 0, 1), np.clip(rough, 0.05, 1), height=height, nstrength=5.0)
 
 
@@ -143,7 +145,7 @@ def wallpaper(name, out, seed, ground, ink, accent, style):
     pat = pat * (1 + 0.08 * (n1[..., None] - 0.5))
     # fading: uneven sun bleaching
     fade = smooth(0.3, 0.9, spectral(h, w, 2.4, seed + 2))
-    pat = pat * (1 - 0.08 * fade[..., None]) + col("#e8dfc8")[None, None, :] * 0.08 * fade[..., None]
+    pat = pat * (1 - 0.16 * fade[..., None]) + col("#e8dfc8")[None, None, :] * 0.16 * fade[..., None]
     height = n2 * 0.3 + n1 * 0.05
     # roll seams every 0.5 m, a couple of lifted seams
     xs = (np.arange(w) + 0.5) / w * 3.0
@@ -151,7 +153,9 @@ def wallpaper(name, out, seed, ground, ink, accent, style):
     pat[:, seam] *= 0.94
     height[:, seam] += 0.15
     dirt = blur(spectral(h, w, 1.8, seed + 5), 2) * smooth(0.8, 0.1, z)
-    pat *= (1 - 0.03 * dirt[..., None])
+    pat *= (1 - 0.1 * dirt[..., None])
+    stain = blobs(h, w, 2, seed + 4, 30, 90) * smooth(2.0, 2.95, z)
+    pat = mix_col(np.clip(stain * 0.16, 0, 0.16), pat, col("#9b8150"))
     sk = z < 0.10
     pat[sk] = col("#4a3328") * (0.9 + 0.2 * n1[sk, None])
     height[sk] = 1.0
@@ -169,6 +173,11 @@ def plaster(name, out, seed, tint="#d6d1c4", tile_m=2.0, ceiling=False):
         # brush marks of whitewash, flaking spots, soot near lamp positions is handled by AO
         streak = blur(spectral(h, w, 0.5, seed + 5), 1.5)
         base *= (1 + 0.04 * (streak[..., None] - 0.5))
+    if ceiling:
+        st = blobs(h, w, 2, seed + 4, 50, 120)
+        ring = np.clip(st * 4, 0, 1) - np.clip(st * 4 - 0.8, 0, 1)
+        base = mix_col(np.clip(st * 0.08, 0, 0.08), base, col("#a6905f"))
+        base = mix_col(np.clip(ring * 0.1, 0, 0.1), base, col("#8d7a52"))
     rough = 0.88 + 0.1 * n2
     save_set(out, name, np.clip(base, 0, 1), rough, height=height, nstrength=2.5)
 
@@ -222,10 +231,12 @@ def linoleum(name, out, seed, style):
     height[seam] += 0.2
     # wear: lighter, matte paths; scratches; dirt; cigarette burns are not appropriate here
     wear = smooth(0.55, 0.85, blur(spectral(h, w, 2.6, seed + 5), 3))
-    base = base * (1 - 0.08 * wear[..., None]) + col("#9a8a78")[None, None, :] * 0.08 * wear[..., None]
-    rough = 0.35 + 0.15 * wear + 0.1 * n1
-    sc = scratches(h, w, 40, seed + 6, length=(0.01, 0.04), width=1)
-    base *= (1 - 0.06 * sc[..., None])
+    base = base * (1 - 0.16 * wear[..., None]) + col("#9a8a78")[None, None, :] * 0.16 * wear[..., None]
+    rough = 0.4 + 0.25 * wear + 0.1 * n1
+    sc = scratches(h, w, 110, seed + 6, length=(0.01, 0.05), width=1)
+    base *= (1 - 0.14 * sc[..., None])
+    dirt = blobs(h, w, 5, seed + 7, 30, 90)
+    base *= (1 - 0.1 * dirt[..., None])
     height -= sc * 0.1
     save_set(out, name, np.clip(base, 0, 1), np.clip(rough, 0, 1), height=height, nstrength=2.0)
 
@@ -250,7 +261,8 @@ def tile_floor(name, out, seed):
     rough = np.where(grout, 0.95, 0.55 + 0.25 * n1)
     odd = r.random((20, 20))
     wear = smooth(0.55, 0.85, blur(spectral(h, w, 2.6, seed + 4), 3))
-    base = base * (1 - 0.08 * wear[..., None]) + col("#8e8070") * 0.08 * wear[..., None]
+    base = base * (1 - 0.14 * wear[..., None]) + col("#8e8070") * 0.14 * wear[..., None]
+    base *= (1 - 0.1 * blobs(h, w, 5, seed + 5, 30, 90)[..., None])
     save_set(out, name, np.clip(base, 0, 1), np.clip(rough, 0, 1), height=height, nstrength=4.0)
 
 
@@ -287,7 +299,8 @@ def terrazzo(name, out, seed):
     height[strip, :] += 0.5
     wear = smooth(0.5, 0.85, blur(spectral(h, w, 2.6, seed + 2), 3))
     rough = 0.22 + 0.2 * wear + 0.08 * n1
-    base = base * (1 - 0.06 * wear[..., None]) + col("#8d887d") * 0.06 * wear[..., None]
+    base = base * (1 - 0.12 * wear[..., None]) + col("#8d887d") * 0.12 * wear[..., None]
+    base *= (1 - 0.08 * blobs(h, w, 6, seed + 4, 30, 110)[..., None])
     save_set(out, name, np.clip(base, 0, 1), np.clip(rough, 0, 1), height=height, nstrength=2.0)
 
 
@@ -361,8 +374,8 @@ def glass_dusty(name, out, seed):
     streak = np.repeat(streak.mean(0, keepdims=True), h, 0) * 0.6 + streak * 0.4   # vertical rain streaks
     dust = np.clip(0.35 * n1 + 0.25 * smooth(0.6, 1.0, yy) + 0.25 * smooth(0.55, 0.8, streak), 0, 1)
     base = col("#c9c4b6")[None, None, :] * (0.9 + 0.1 * n2[..., None])
-    alpha = np.clip(0.05 + 0.08 * dust, 0, 0.2)
-    rough = np.clip(0.03 + 0.08 * dust, 0, 1)
+    alpha = np.clip(0.07 + 0.2 * dust, 0, 0.35)
+    rough = np.clip(0.05 + 0.3 * dust, 0, 1)
     save_set(out, name, np.clip(base, 0, 1), rough, alpha=alpha, height=n1 * 0.05, nstrength=0.5)
 
 

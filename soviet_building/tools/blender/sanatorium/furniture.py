@@ -13,6 +13,25 @@ def bx(mb, x0, x1, y0, y1, z0, z1, regions, faces=("-x", "+x", "-y", "+y", "+z")
     mb.box(x0, x1, y0, y1, z0, z1, mat, faces=faces, uv="region", regions=regions)
 
 
+def cushion(mb, x0, x1, y0, y1, z0, z1, region, c=0.035, skip=()):
+    """Upholstered block with rounded-off (chamfered) top edges: inset top, four sloping strips, sides.
+    `skip` lists sides ("-x", "+x", "-y", "+y") that are hidden and not built."""
+    c = min(c, (x1 - x0) / 3, (y1 - y0) / 3, (z1 - z0) / 2)
+    u0, v0, u1, v1 = FURN_UV[region]
+    uv = [(u0, v0), (u1, v0), (u1, v1), (u0, v1)]
+    zt, zc = z1, z1 - c
+    top = [(x0 + c, y0 + c, zt), (x1 - c, y0 + c, zt), (x1 - c, y1 - c, zt), (x0 + c, y1 - c, zt)]
+    mb.poly_n(top, uv, A, (0, 0, 1))
+    rim = [(x0, y0, zc), (x1, y0, zc), (x1, y1, zc), (x0, y1, zc)]
+    sides = [("-y", 0, 1, (0, -1, 0.7)), ("+x", 1, 2, (1, 0, 0.7)), ("+y", 2, 3, (0, 1, 0.7)), ("-x", 3, 0, (-1, 0, 0.7))]
+    for name, i, k, want in sides:
+        mb.poly_n([rim[i], rim[k], top[k], top[i]], uv, A, want)
+        if name in skip:
+            continue
+        a, b = rim[i], rim[k]
+        mb.poly_n([(a[0], a[1], z0), (b[0], b[1], z0), b, a], uv, A, (want[0], want[1], 0))
+
+
 def quad(mb, pts, region, mat=A, want=None):
     u0, v0, u1, v1 = (DECAL_UV if "decal" in mat else FURN_UV)[region]
     uv = [(u0, v0), (u1, v0), (u1, v1), (u0, v1)]
@@ -23,9 +42,19 @@ def quad(mb, pts, region, mat=A, want=None):
 
 
 def legs_alpha(mb, w, d, h, region="chair_legs_wood"):
-    """Two crossed side-silhouette quads instead of four leg boxes (double-sided alpha)."""
-    for x in (-w / 2 + 0.02, w / 2 - 0.02):
-        quad(mb, [(x, -d / 2, 0), (x, d / 2, 0), (x, d / 2, h), (x, -d / 2, h)], region, DEC)
+    """Four real legs (the name is kept from the earlier alpha-card version). Wood: square 32 mm
+    legs with side stretchers on small pieces; tube: 22 mm dark steel legs."""
+    tube = region != "chair_legs_wood"
+    s = 0.022 if tube else 0.032
+    reg = "metal_grey" if tube else "wood_dark"
+    ins = s / 2 + 0.008
+    xs, ys = (-w / 2 + ins, w / 2 - ins), (-d / 2 + ins, d / 2 - ins)
+    for x in xs:
+        for y in ys:
+            bx(mb, x - s / 2, x + s / 2, y - s / 2, y + s / 2, 0.0, h, {"*": reg}, ("-x", "+x", "-y", "+y"))
+    if not tube and w < 0.9 and d < 0.9 and h > 0.3:
+        for x in xs:          # side stretchers at 0.15 m
+            bx(mb, x - 0.012, x + 0.012, ys[0] + s / 2, ys[1] - s / 2, 0.13, 0.16, {"*": reg}, ("-x", "+x", "+z", "-z"))
 
 
 def cyl_r(mb, cx, cy, z0, z1, r, region, sides=8, top=True):
@@ -100,19 +129,24 @@ def chair(style="wood"):
     bx(mb, -w / 2, w / 2, d / 2 - 0.03, d / 2, 0.62, 0.9, {"*": seat if style != "wood" else "wood_plain"},
        ("-x", "+x", "-y", "+y", "+z"))
     legs_alpha(mb, w, d, 0.43, "chair_legs_tube" if style != "wood" else "chair_legs_wood")
-    for x in (-w / 2 + 0.02, w / 2 - 0.02):
-        quad(mb, [(x, d / 2 - 0.02, 0.43), (x, d / 2, 0.43), (x, d / 2, 0.62), (x, d / 2 - 0.02, 0.62)],
-             "chair_legs_tube" if style != "wood" else "chair_legs_wood", DEC)
+    reg = "metal_grey" if style != "wood" else "wood_dark"
+    for x in (-w / 2 + 0.028, w / 2 - 0.028):         # back posts carrying the backrest
+        bx(mb, x - 0.012, x + 0.012, d / 2 - 0.028, d / 2 - 0.004, 0.46, 0.62, {"*": reg}, ("-x", "+x", "-y", "+y"))
     return mb
 
 
 def armchair(region="upholstery_brown"):
+    """1970s easy chair: rounded seat and back cushions between flat wooden arm panels, legs below."""
     mb = MB("armchair")
     w, d = 0.7, 0.75
-    bx(mb, -w / 2 + 0.08, w / 2 - 0.08, -d / 2, d / 2 - 0.12, 0.18, 0.42, {"*": region}, ("-x", "+x", "-y", "+z"))
-    bx(mb, -w / 2 + 0.08, w / 2 - 0.08, d / 2 - 0.15, d / 2, 0.18, 0.85, {"*": region}, ("-x", "+x", "-y", "+y", "+z"))
-    for x0, x1 in ((-w / 2, -w / 2 + 0.08), (w / 2 - 0.08, w / 2)):
-        bx(mb, x0, x1, -d / 2, d / 2, 0.0, 0.6, {"*": "wood_plain"}, ("-x", "+x", "-y", "+y", "+z"))
+    cushion(mb, -w / 2 + 0.07, w / 2 - 0.07, -d / 2 + 0.02, d / 2 - 0.13, 0.22, 0.44, region, 0.04, ("-x", "+x"))
+    cushion(mb, -w / 2 + 0.07, w / 2 - 0.07, d / 2 - 0.17, d / 2 - 0.02, 0.3, 0.86, region, 0.045, ("-x", "+x"))
+    bx(mb, -w / 2 + 0.07, w / 2 - 0.07, -d / 2 + 0.04, d / 2 - 0.04, 0.16, 0.22, {"*": "wood_dark"}, ("-y", "+y"))
+    for x0, x1 in ((-w / 2, -w / 2 + 0.07), (w / 2 - 0.07, w / 2)):
+        bx(mb, x0, x1, -d / 2, d / 2, 0.2, 0.6, {"*": "wood_plain"}, ("-x", "+x", "-y", "+y", "+z", "-z"))
+        for y in (-d / 2 + 0.05, d / 2 - 0.05):
+            xm = (x0 + x1) / 2
+            bx(mb, xm - 0.018, xm + 0.018, y - 0.018, y + 0.018, 0.0, 0.2, {"*": "wood_dark"}, ("-x", "+x", "-y", "+y"))
     return mb
 
 
@@ -128,14 +162,24 @@ def sofa(w=1.8):
 
 
 def _sofa(w=1.8, region="upholstery_green"):
+    """Three-seat sofa: three rounded seat cushions, two back cushions, wooden arm panels, legs."""
     mb = MB("sofa_" + region)
     d = 0.8
-    bx(mb, -w / 2 + 0.1, w / 2 - 0.1, -d / 2, d / 2 - 0.15, 0.1, 0.44, {"*": region}, ("-x", "+x", "-y", "+z"))
-    bx(mb, -w / 2 + 0.1, w / 2 - 0.1, d / 2 - 0.2, d / 2, 0.1, 0.9, {"*": region}, ("-x", "+x", "-y", "+y", "+z"))
+    inner = w - 0.2
+    for k in range(3):
+        a = -inner / 2 + k * inner / 3
+        cushion(mb, a + 0.004, a + inner / 3 - 0.004, -d / 2 + 0.02, d / 2 - 0.18, 0.2, 0.45, region, 0.04,
+                ("-x", "+x") if k == 1 else (("-x",) if k == 0 else ("+x",)))
+    for k in range(2):
+        a = -inner / 2 + k * inner / 2
+        cushion(mb, a + 0.004, a + inner / 2 - 0.004, d / 2 - 0.22, d / 2 - 0.02, 0.32, 0.9, region, 0.05,
+                ("-x", "+x"))
+    bx(mb, -inner / 2, inner / 2, -d / 2 + 0.04, d / 2 - 0.04, 0.12, 0.2, {"*": "wood_dark"}, ("-y", "+y"))
     for x0, x1 in ((-w / 2, -w / 2 + 0.1), (w / 2 - 0.1, w / 2)):
-        bx(mb, x0, x1, -d / 2, d / 2, 0.0, 0.62, {"*": "wood_plain"}, ("-x", "+x", "-y", "+y", "+z"))
-    for x in (-w / 4, w / 4):     # seat cushions seam
-        bx(mb, x - 0.005, x + 0.005, -d / 2, d / 2 - 0.2, 0.44, 0.445, {"*": "wood_dark"}, ("+z",))
+        bx(mb, x0, x1, -d / 2, d / 2, 0.12, 0.62, {"*": "wood_plain"}, ("-x", "+x", "-y", "+y", "+z", "-z"))
+        for y in (-d / 2 + 0.06, d / 2 - 0.06):
+            xm = (x0 + x1) / 2
+            bx(mb, xm - 0.02, xm + 0.02, y - 0.02, y + 0.02, 0.0, 0.12, {"*": "wood_dark"}, ("-x", "+x", "-y", "+y"))
     return mb
 
 
@@ -185,11 +229,11 @@ def curtains(w=2.0, h=2.1):
 def wall_quad(region, w, h, mat=DEC):
     """Flat item on a wall: front faces -Y, back at y=0 (poster, plan, carpet...)."""
     mb = MB("wq_" + region)
-    quad(mb, [(-w / 2, -0.004, 0), (w / 2, -0.004, 0), (w / 2, -0.004, h), (-w / 2, -0.004, h)], region, mat, (0, -1, 0))
+    quad(mb, [(-w / 2, -0.008, 0), (w / 2, -0.008, 0), (w / 2, -0.008, h), (-w / 2, -0.008, h)], region, mat, (0, -1, 0))
     return mb
 
 
-def floor_quad(region, w, d, mat=DEC, z=0.004):
+def floor_quad(region, w, d, mat=DEC, z=0.008):
     mb = MB("fq_" + region)
     quad(mb, [(-w / 2, -d / 2, z), (w / 2, -d / 2, z), (w / 2, d / 2, z), (-w / 2, d / 2, z)], region, mat, (0, 0, 1))
     return mb
@@ -224,7 +268,7 @@ def telephone():
 
 
 def papers(k=1):
-    return floor_quad(f"papers_{k}", 0.45, 0.45, DEC, z=0.003)
+    return floor_quad(f"papers_{k}", 0.45, 0.45, DEC, z=0.011)
 
 
 def paper_stack():
@@ -322,8 +366,7 @@ def exam_couch():
     pts = [(-w / 2, d / 2 - 0.5, 0.62), (w / 2, d / 2 - 0.5, 0.62), (w / 2, d / 2, 0.85), (-w / 2, d / 2, 0.85)]
     quad(mb, pts, "exam_couch")
     quad(mb, [(-w / 2, d / 2, 0.5), (w / 2, d / 2, 0.5), (w / 2, d / 2, 0.85), (-w / 2, d / 2, 0.85)], "exam_couch")
-    for x in (-w / 2 + 0.03, w / 2 - 0.03):
-        quad(mb, [(x, -d / 2, 0), (x, d / 2, 0), (x, d / 2, 0.5), (x, -d / 2, 0.5)], "chair_legs_tube", DEC)
+    legs_alpha(mb, w, d, 0.5, "chair_legs_tube")
     return mb
 
 
@@ -750,7 +793,7 @@ def bed_made(spread="bedspread_a", w=0.9, d=2.0):
     bx(mb, -w / 2 - 0.015, w / 2 + 0.015, -d / 2 + 0.01, y1, 0.30, 0.565, {"*": spread},
        ("-x", "+x", "-y", "+y", "+z"))
     bx(mb, -w / 2 + 0.005, w / 2 - 0.005, y1, y1 + 0.14, 0.53, 0.55, {"*": "linen_white"}, ("+y", "+z"))
-    bx(mb, -0.33, 0.33, d / 2 - 0.47, d / 2 - 0.08, 0.53, 0.68, {"*": "pillow"}, ("-x", "+x", "-y", "+z"))
+    cushion(mb, -0.33, 0.33, d / 2 - 0.47, d / 2 - 0.08, 0.53, 0.68, "pillow", 0.05, ("+y",))
     bx(mb, -w / 2 - 0.02, w / 2 + 0.02, d / 2 - 0.04, d / 2, 0.0, 0.98, {"*": "wood_plain"},
        ("-x", "+x", "-y", "+y", "+z"))
     bx(mb, -w / 2 - 0.02, w / 2 + 0.02, -d / 2, -d / 2 + 0.04, 0.0, 0.62, {"*": "wood_plain"},
@@ -768,11 +811,10 @@ def bed_hospital_made():
     y1 = d / 2 - 0.62
     bx(mb, -w / 2 + 0.01, w / 2 - 0.01, -d / 2 + 0.04, y1, 0.47, 0.675, {"*": "bedspread_b"},
        ("-x", "+x", "-y", "+y", "+z"))
-    bx(mb, -0.33, 0.33, d / 2 - 0.47, d / 2 - 0.1, 0.66, 0.79, {"*": "pillow"}, ("-x", "+x", "-y", "+z"))
+    cushion(mb, -0.33, 0.33, d / 2 - 0.47, d / 2 - 0.1, 0.66, 0.79, "pillow", 0.05, ("+y",))
     for y, h in ((d / 2 - 0.02, 1.05), (-d / 2 + 0.02, 0.85)):
         quad(mb, [(-w / 2, y, 0.0), (w / 2, y, 0.0), (w / 2, y, h), (-w / 2, y, h)], "bed_head_tube", DEC)
-    for x in (-w / 2 + 0.03, w / 2 - 0.03):
-        quad(mb, [(x, -d / 2, 0), (x, d / 2, 0), (x, d / 2, 0.47), (x, -d / 2, 0.47)], "chair_legs_tube", DEC)
+    legs_alpha(mb, w - 0.04, d - 0.08, 0.45, "chair_legs_tube")
     for sx in (-1, 1):      # side rail on the upper half (safety), down on the access side in the texture
         mb.tube_region([(sx * (w / 2 + 0.01), 0.1, 0.8), (sx * (w / 2 + 0.01), d / 2 - 0.15, 0.8)], 0.012, "chrome", 4)
     return mb
@@ -813,9 +855,9 @@ def massage_table():
 def stool():
     mb = MB("stool")
     cyl_r(mb, 0, 0, 0.5, 0.56, 0.18, "upholstery_brown", sides=8)
-    for a in (0.0, math.pi / 2):
-        c, s = math.cos(a) * 0.17, math.sin(a) * 0.17
-        quad(mb, [(-c, -s, 0), (c, s, 0), (c, s, 0.5), (-c, -s, 0.5)], "chair_legs_tube", DEC)
+    for a in (0.4, 0.4 + 2.094, 0.4 + 4.189):     # three splayed tube legs
+        mb.tube_region([(0.06 * math.cos(a), 0.06 * math.sin(a), 0.5), (0.17 * math.cos(a), 0.17 * math.sin(a), 0.0)],
+                       0.011, "metal_grey", 4)
     return mb
 
 
@@ -1185,9 +1227,9 @@ MODS.update({
     "suitcase_a": M(lambda: suitcase("suitcase_a"), 0.62, 0.2), "suitcase_b": M(lambda: suitcase("suitcase_b"), 0.62, 0.2),
     "travel_bag": M(travel_bag, 0.52, 0.3), "luggage_rack": M(lambda: rack("luggage_shelf", 1.2, 0.5, 1.9), 1.2, 0.5),
     "ex_bike": M(ex_bike, 0.5, 0.9), "gym_bench": M(gym_bench, 2.0, 0.3),
-    "gym_mat": M(lambda: floor_quad("gym_mat", 1.8, 0.6, A, z=0.006), 1.8, 0.6),
-    "rubber_mat": M(lambda: floor_quad("rubber_mat", 0.8, 1.8, A, z=0.005), 0.8, 1.8),
-    "bath_mat": M(lambda: floor_quad("bath_mat", 0.6, 0.45, A, z=0.005), 0.6, 0.45),
+    "gym_mat": M(lambda: floor_quad("gym_mat", 1.8, 0.6, A, z=0.012), 1.8, 0.6),
+    "rubber_mat": M(lambda: floor_quad("rubber_mat", 0.8, 1.8, A, z=0.012), 0.8, 1.8),
+    "bath_mat": M(lambda: floor_quad("bath_mat", 0.6, 0.45, A, z=0.012), 0.6, 0.45),
     "rug_small": M(lambda: floor_quad("carpet_rug", 1.4, 0.9, A), 1.4, 0.9),
     "rug_big": M(lambda: floor_quad("carpet_rug", 2.6, 1.8, A), 2.6, 1.8),
     "floor_lamp": M(floor_lamp, 0.48, 0.48), "carafe": M(carafe, 0.2, 0.12),
@@ -1218,7 +1260,7 @@ for _k, (_r, _w, _h) in {
     "arrow_spa": ("arrow_spa", 0.5, 0.125), "papers_desk": ("papers_1", 0.4, 0.4),
 }.items():
     MODS[_k] = M((lambda r=_r, w=_w, h=_h: wall_quad(r, w, h)), _w, 0.01)
-MODS["papers_desk"] = M(lambda: floor_quad("papers_1", 0.38, 0.38, DEC, z=0.002), 0.38, 0.38)
+MODS["papers_desk"] = M(lambda: floor_quad("papers_1", 0.38, 0.38, DEC, z=0.004), 0.38, 0.38)
 for _k in ("stain", "dust", "papers_1", "papers_2", "soot", "stain_wall", "key_only"):
     MODS.pop(_k, None)
 MODS["radio"] = M(radio, 0.22, 0.08)
@@ -1237,3 +1279,31 @@ WALL = {k for k in MODS if k.startswith(("poster_", "painting_", "arrow_"))} | {
 ON_TOP = {"table_lamp", "telephone", "typewriter", "paper_stack", "papers_desk", "microscope", "centrifuge",
           "samovar", "vase", "tv_small", "game_chess", "game_checkers", "game_dominoes", "game_backgammon",
           "carafe", "suitcase_a", "suitcase_b", "travel_bag", "inhaler"}
+
+
+# ====================================================================== v3: half-abandoned mood
+def cobweb(mirror=False):
+    """Cobweb hanging in an upper room corner. Corner at the origin, walls along +x and +y (mirror: +x and -y)."""
+    mb = MB("cobweb")
+    sy = -1 if mirror else 1
+    pts = [(0.62, 0.012 * sy, 0.0), (0.012, 0.62 * sy, 0.0), (0.012, 0.012 * sy, -0.7)]
+    u0, v0, u1, v1 = DECAL_UV["cobweb"]
+    mb.poly(pts, [(u1, v1), (u0, v1), ((u0 + u1) / 2, v0)], "atlas_decal_blend")
+    return mb
+
+
+def bed_strip():
+    """Bed stripped of its linen: striped mattress, the blanket folded at the foot, no pillow."""
+    mb = bed("bare")
+    bx(mb, -0.3, 0.3, -0.95, -0.6, 0.55, 0.67, {"*": "blanket"}, ("-x", "+x", "-y", "+y", "+z"))
+    return mb
+
+
+MODS.update({
+    "cobweb_r": M(lambda: cobweb(False), 0.62, 0.62), "cobweb_l": M(lambda: cobweb(True), 0.62, 0.62),
+    "bed_strip": M(bed_strip, 0.94, 2.0),
+    "dust_patch": M(lambda: floor_quad("dust_patch", 1.6, 1.6, "atlas_decal_blend", z=0.009), 1.6, 1.6),
+    "leaves_dry": M(lambda: floor_quad("leaves_dry", 0.7, 0.35, DEC, z=0.010), 0.7, 0.35),
+    "papers_floor": M(lambda: floor_quad("papers_1", 0.5, 0.5, DEC, z=0.011), 0.5, 0.5),
+    "stain_small": M(lambda: floor_quad("stain_small", 0.7, 0.7, "atlas_decal_blend", z=0.010), 0.7, 0.7),
+})

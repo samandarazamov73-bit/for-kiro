@@ -161,12 +161,33 @@ def to8(a):
     return (np.clip(a, 0, 1) * 255 + 0.5).astype(np.uint8)
 
 
+GRAIN = 0.05       # "new but grimy": fine film-grain noise and dust specks on every surface
+
+
+def grain(base, rough, seed, amt=GRAIN, mask=None):
+    """Tileable fine grain (near-white noise), soft mottling and sparse dark dust specks."""
+    h, w = base.shape[:2]
+    fine = spectral(h, w, 0.15, seed + 7001)
+    mid = spectral(h, w, 1.3, seed + 7002)
+    specks = (spectral(h, w, 0.05, seed + 7003) > 0.985).astype(float)
+    k = np.ones((h, w)) if mask is None else mask
+    f = 1 + k * (amt * (fine - 0.5) * 2 + amt * 0.8 * (mid - 0.5) - 0.18 * specks)
+    base = base * f[..., None]
+    rough = np.clip(np.asarray(rough) + k * 0.06 * (fine - 0.5), 0, 1) if np.ndim(rough) else rough
+    return base, rough
+
+
 def save_set(out_dir, name, base, rough, ao=None, height=None, nstrength=4.0, metal=None, alpha=None,
-             normal=None):
+             normal=None, grain_amt=GRAIN):
     """Writes the project-convention PBR set: _BaseColor, _Normal (OpenGL), _ORM (R=AO G=rough B=metal),
     _Roughness, _AO (+ _Metallic when metal is given)."""
     os.makedirs(out_dir, exist_ok=True)
     h, w = base.shape[:2]
+    if grain_amt:
+        if np.ndim(rough) == 0:
+            rough = np.full((h, w), float(rough))
+        base, rough = grain(np.clip(base, 0, 1), rough, sum(map(ord, name)), grain_amt)
+        base = np.clip(base, 0, 1)
     if ao is None:
         ao = cavity_ao(height) if height is not None else np.ones((h, w))
     if normal is None:

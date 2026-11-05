@@ -143,8 +143,8 @@ def suite_double(c):
     Wn = n[1] - n[0]                       # width of the corridor-side part (bath block beyond)
     yb = n[2]                              # v where the bath block starts
     spread = "bed_a" if c.rng.random() < 0.5 else "bed_b"
-    bA = m.at(spread, 1.02, 1.30, "+u")
-    bB = m.at(spread, 1.02, 3.14, "+u")
+    bA = m.at("bed_strip" if c.rng.random() < 0.2 else spread, 1.02, 1.30, "+u")
+    bB = m.at("bed_strip" if c.rng.random() < 0.2 else spread, 1.02, 3.14, "+u")
     s1 = m.at("bedside", 0.24, 2.22, "+u")
     s2 = m.at("bedside", 0.24, 3.88, "+u")
     m.on_top(s1, "table_lamp")
@@ -187,7 +187,7 @@ def suite_single(c):
     yb = n[2]
     # unflipped frame here: passage on the high-u side (mirror of the double room logic)
     pw = n[1] - n[0]
-    bed = m.at("bed_a" if c.rng.random() < 0.5 else "bed_b", 0.49, yb - 1.02, "-v")
+    bed = m.at(c.rng.choice(["bed_a", "bed_b", "bed_strip"]), 0.49, yb - 1.02, "-v")
     sd = m.at("bedside", 1.2, yb - 0.23, "-v")
     m.on_top(sd, "table_lamp")
     m.mount(1.05, yb, "-v", "call_button", 0.8)
@@ -252,6 +252,10 @@ def bath_fixtures(c, access=False):
     sk = first([lambda: m.at("sink", 0.42, 0.22, "+v"), lambda: m.at("sink", W / 2 - 0.1, 0.22, "+v")])
     if sk is not None:
         m.mount(0.79, 0.0, "+v", "grab_bar_v", 0.8)
+    else:                                   # door at the window end: washbasin on the door wall further in
+        sk = first([lambda: m.at("sink", 0.2, 1.62, "+u"), lambda: m.at("sink", 0.2, 1.45, "+u")])
+        if sk is not None:
+            m.mount(0.0, 1.62 + 0.4, "+u", "grab_bar_v", 0.8)
     s = "shower_tray" if access else ("shower" if W > 1.5 else "shower_s")
     half = F.MODS[s][1] / 2
     sh = first([lambda: m.at(s, W - half - 0.01, D - half - 0.004, "-v"),
@@ -1297,12 +1301,91 @@ def stair(c):
         for key, (x, y), ro in items:
             c.B.lib.place(key, F.MODS[key][0], c.B.coll_for(r.rid), f"{key}_{r.rid}_{i}", (x, y, L), ro,
                           c.B.room_empty[r.rid])
+            w_, d_ = F.MODS[key][1], F.MODS[key][2]
+            c.B.game_boxes.append({"room": r.rid, "center": (x, y, L + 0.45), "size": (w_, d_, 0.9), "rot": ro, "key": key})
             c.B.stats["Furniture"] = c.B.stats.get("Furniture", 0) + mod_info(key)[2]
 
 
 @recipe("shaft")
 def none(c):
     pass
+
+
+# ================================================================== half-abandoned mood
+COBWEB_P = {"E_technical": 0.9, "D_catering": 0.6, "C_medical": 0.5, "P_patient": 0.45, "S_spa": 0.4,
+            "B_admin": 0.5, "A_entrance": 0.3, "CIRC": 0.6}
+PAPER_KINDS = ("director", "admin_office", "registration", "info", "guard", "med_reg", "med_archive", "nurse_post",
+               "nurse_office", "nurse_office_floor", "staff_office", "doctor_duty", "library", "gp", "consult")
+STAIN_KINDS = ("wc_men", "wc_women", "wc_shower_m", "wc_shower_f", "kitchen", "dishwash", "food_prep", "veg_prep",
+               "corridor", "corridor_patient", "service_corridor", "dirty_linen", "waste", "staff_wc", "suite_bath")
+PLANT_KEYS = ("plant_stand", "palm", "plant_1", "plant_2")
+
+
+def mood(c):
+    """Light traces of neglect, never in the way: cobwebs in upper corners, dust patches, dry leaves under
+    the dying plants, a few papers on office floors, small stains in wet rooms and corridors."""
+    r = c.room
+    if r.kind in ("shaft",) or r.kind.startswith("stair"):
+        return
+    rng = c.rng
+    # every room that is not open circulation gets a light switch by its door (the game uses them)
+    if not r.kind.startswith(("corridor", "service_corridor")) and r.kind not in ("vestibule", "hall", "foyer") and \
+            not any(lg["key"] == "light_switch" and lg["room"] == r.rid for lg in c.B.game_items):
+        c.switch()
+    tall = r.z1 - r.z0
+    # cobwebs in the corners of the largest rectangle
+    if rng.random() < COBWEB_P.get(r.dept, 0.4):
+        q = max(c.rects_local, key=lambda t: (t[1] - t[0]) * (t[3] - t[2]))
+        corners = [(q[0], q[2], "+u", "+v"), (q[1], q[2], "-u", "+v"), (q[0], q[3], "+u", "-v"), (q[1], q[3], "-u", "-v")]
+        rng.shuffle(corners)
+        for (u, v, fu, fv) in corners[: 1 + (rng.random() < 0.4)]:
+            ex = c.dir_world(fu)
+            ey = c.dir_world(fv)
+            right = ex[0] * ey[1] - ex[1] * ey[0] > 0
+            x, y = c.l2w(u, v)
+            rot = math.atan2(ex[1], ex[0])
+            key = "cobweb_r" if right else "cobweb_l"
+            ob = c.B.lib.place(key, F.MODS[key][0], c.B.coll_for(r.rid), f"Cobweb_{r.rid.split('.')[1]}",
+                               (x, y, r.z1 - 0.004), rot if right else rot, c.B.room_empty[r.rid])
+            c.B.stats["Furniture"] = c.B.stats.get("Furniture", 0) + mod_info(key)[2]
+    # dust patches on the floor (soft, under or between furniture)
+    for _ in range(1 if r.area < 20 else 2):
+        if rng.random() < 0.55:
+            q = max(c.rects_local, key=lambda t: (t[1] - t[0]) * (t[3] - t[2]))
+            if q[1] - q[0] > 1.8 and q[3] - q[2] > 1.8:
+                c.at("dust_patch", rng.uniform(q[0] + 0.8, q[1] - 0.8), rng.uniform(q[2] + 0.8, q[3] - 0.8), "+v",
+                     check=False)
+    # dry leaves under plants
+    for it in list(c.items):
+        if it.key in PLANT_KEYS and rng.random() < 0.7:
+            c.at("leaves_dry", it.u + rng.uniform(-0.25, 0.25), it.v + rng.uniform(-0.2, 0.2),
+                 rng.choice(["+u", "-u", "+v", "-v"]), check=False)
+    # papers fallen on office floors
+    if r.kind in PAPER_KINDS and rng.random() < 0.6:
+        for _ in range(12):
+            u, v = rng.uniform(0.4, c.W - 0.4), rng.uniform(0.6, c.D - 0.6)
+            rr = (u - 0.25, u + 0.25, v - 0.25, v + 0.25)
+            if c.inside(rr) and c.free(rr):
+                c.at("papers_floor", u, v, rng.choice(["+u", "-u", "+v", "-v"]), check=False)
+                break
+    # small stains
+    if r.kind in STAIN_KINDS:
+        n = max(1, int(r.area / 40)) if r.kind.startswith(("corridor", "service")) else (1 if rng.random() < 0.5 else 0)
+        for _ in range(n):
+            q = rng.choice(c.rects_local)
+            if q[1] - q[0] > 1.0 and q[3] - q[2] > 1.0:
+                c.at("stain_small", rng.uniform(q[0] + 0.4, q[1] - 0.4), rng.uniform(q[2] + 0.4, q[3] - 0.4), "+v",
+                     check=False)
+    # things left behind in the guest-floor corridors
+    if r.kind == "corridor_patient":
+        left = {1: "wheelchair", 2: "laundry_cart", 3: "cleaning_cart"}[r.level]
+        for (a, b) in wall_segments(c, "W", 1.6):
+            if 12 < a < c.W - 12 and c.at(left, (a + b) / 2, 0.42, "+u", cover_ok=True):
+                break
+    if r.kind == "corridor":
+        for (a, b) in wall_segments(c, "B", 2.2):
+            if 25 < a < c.W - 6 and c.at("stretcher", (a + b) / 2, c.D - 0.35, "+u", cover_ok=True):
+                break
 
 
 def furnish_all(B):
@@ -1316,5 +1399,6 @@ def furnish_all(B):
             continue
         c = Ctx(B, r, random.Random(r.seed))
         fn(c)
+        mood(c)
         B.ctx[r.rid] = c
     B.stats["recipes_missing"] = sorted(missing)

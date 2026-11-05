@@ -1,26 +1,30 @@
-# Sanatorium interior (c. 1975–85) inside the existing building
+# Sanatorium interior (c. 1975–85) inside the existing building, and the Godot game
 
 The interior is built inside the existing exterior model (`export/SovietSchool.glb`), which is the only building in this repository. The exterior files are not modified.
 
-The building is a clean, fully working Soviet sanatorium for elderly guests. Every lamp works, the beds are made, the rooms are tidy, and the corridors have handrails and soft seating. The 1st floor holds reception, a phyto-bar, the treatment (spa) department, the medical department, dining and service rooms. Floors 2–4 are guest floors with rooms that each have their own bathroom.
+The building is a Soviet sanatorium for elderly guests that has been left half abandoned: the furniture is still in place and the layout is intact, but dust, cobwebs and dead plants show that nobody has looked after it for a while, and some lamps are dead or flickering. The mood is mildly scary, not horror. The 1st floor holds reception, a phyto-bar, the treatment (spa) department, the medical department, dining and service rooms. Floors 2–4 are guest floors with rooms that each have their own bathroom.
 
-Overview of all views: [`renders/interior_overview.jpg`](renders/interior_overview.jpg).
+The building is also a playable **Godot 4.7 game** (first-person electric wheelchair): see [`game/README.md`](game/README.md) and the in-game screenshots [`renders/game_overview.jpg`](renders/game_overview.jpg).
 
-**Triangles:** interior 113,764, exterior 42,040, combined scene 155,804 (budget 200k). Repeated modules (beds, chairs, doors, radiators, lamps...) are shared meshes, so glTF instancing keeps the files small.
+The Cycles renders in [`renders/interior_overview.jpg`](renders/interior_overview.jpg) were made before the half-abandoned pass (they show the clean lighting and the earlier furniture); the game screenshots show the current state.
+
+**Triangles:** interior 147,488, exterior 42,040, combined scene 189,528 (budget 200k). Repeated modules (beds, chairs, doors, radiators, lamps...) are shared meshes, so glTF instancing keeps the files small.
 
 ## Deliverables
 
 | Path | Content |
 |---|---|
 | `export/blend/SovietSanatorium.blend` | Blender 4.5 LTS scene: exterior + interior. Textures are linked relatively from `textures/`. Collections per floor, one empty per room with metadata. |
-| `export/SovietSanatorium.glb` | glTF 2.0 binary, exterior + interior, textures embedded (JPEG), 592 punctual lights plus the sun, custom properties as `extras` (19.8 MB) |
-| `export/SovietSanatorium_Interior.glb` | Interior only, same structure (10.1 MB) |
-| `export/fbx/SovietSanatorium.fbx` | FBX, Y-up, textures referenced from `textures/` (6.8 MB) |
+| `export/SovietSanatorium.glb` | glTF 2.0 binary, exterior + interior, textures embedded (JPEG), 518 point lights plus the sun, custom properties as `extras` (24.1 MB) |
+| `export/SovietSanatorium_Interior.glb` | Interior only, same structure (14.4 MB) |
+| `export/fbx/SovietSanatorium.fbx` | FBX, Y-up, textures referenced from `textures/` (7.2 MB) |
 | `plans/plan_floor1..4.png` | Floor plans generated from the same data as the 3D model |
 | `plans/rooms.csv` | Room schedule: floor, number, Russian/English name, department, area, windows, doors |
 | `renders/interior/` | 24 Cycles renders of the main spaces; `renders/interior_overview.jpg` shows them all |
 | `textures/T_*` (23 new sets) | Interior PBR sets and atlases (see below). The 10 exterior sets are unchanged. |
-| `tools/blender/` | Python source of the whole interior pipeline (plan data, validator, textures, geometry, furnishing, renders) |
+| `game/` | Godot 4.7 project: `assets/sanatorium.glb` (whole building without lights), `assets/level.json` (doors, lamps, switches, lift, colliders, critter areas), sounds, scripts, tests |
+| `renders/game/`, `renders/game_overview.jpg` | Screenshots taken in the game |
+| `tools/blender/` | Python source of the whole pipeline (plan data, validator, textures, geometry, furnishing, renders, game export, sound generator) |
 
 The original `SovietSchool.*` files are untouched. The exterior inside the new files differs in two ways only. The window glass uses a clear glass material instead of the fake-room atlas, because real rooms are now behind it. The window frames are double-sided.
 
@@ -89,7 +93,7 @@ All dimensions come from the Go generator (`tools/cmd/build`) and are reproduced
 
 ## Doors
 
-244 door leaves in 237 openings. Types: wood, wood with glazing, wired-glass double doors (stairs, dining hall, lounges), steel (technical rooms), padded (chief physician), plus service counters, glazed partitions and projection ports. Every door sits in a frame with casings on both faces and a threshold. All leaves are modelled closed; the swing zone of every door is kept free of furniture, so a door can be opened in the engine. En-suite bathroom doors open into the bedroom. Door node `extras`: `door`, `open_angle_deg`, `hinge`, `opens_into`, `locked` (closed steel technical doors), `type`.
+244 door leaves in 237 openings. Room doors are 2.3 m high; ordinary doors are 1.0 m wide, bathroom and small service doors 0.9 m (0.8 m in five narrow passages beside pilasters), double doors 1.5–1.6 m, so the wheelchair passes everywhere. The leaf fills the frame with 6 mm clearance, and a door stop strip on the jamb covers the gap; thresholds are flush with the floor. Types: wood, wood with glazing, wired-glass double doors (stairs, dining hall, lounges), steel (technical rooms), padded (chief physician), plus service counters, glazed partitions and projection ports. Every door sits in a frame with casings on both faces and a threshold. All leaves are modelled closed (the game opens some of them at start); the swing zone of every door is kept free of furniture. Door leaves are named `DoorLeaf_<door>_<leaf>` with the origin on the hinge. En-suite bathroom doors open into the bedroom. Door node `extras`: `door`, `open_angle_deg`, `hinge`, `opens_into`, `locked` (closed steel technical doors), `type`.
 
 ## Furnishing rules
 
@@ -102,18 +106,21 @@ Furniture is placed by recipes per room type (`tools/blender/sanatorium/furnish.
 - Radiators stand on the floor under every window of a heated room. In the club hall they stand on the hall floor (on the stage at the stage end); the upper hall windows have none. Dry and cold food stores have no radiator.
 - `tools/blender/furnish_preview.py` runs all recipes without Blender, draws every footprint over the floor plans and lists the rejected placements.
 
-3,183 furniture items, 215 radiators, curtains and tulle in all furnished rooms.
+About 3,400 items, 215 radiators, curtains and tulle in all furnished rooms. Chairs, tables, couches and stools have real legs (no flat alpha cards); armchairs, sofas and pillows have rounded cushions.
+
+**Signs of neglect** (`mood()` in `furnish.py`, kept light): cobwebs in upper room corners (144), dust patches (127), dry leaves under the plants, which are almost dead (brown, drooping foliage in the textures), a few papers on office floors, small stains in wet rooms and corridors, 18 beds stripped to the mattress, chairs left slightly askew, and things left behind in the corridors (a wheelchair, a laundry cart, a cleaning cart, a stretcher).
 
 ## Lighting
 
-- 526 ceiling fixtures: glass plafonds (guest rooms, corridors, offices, lounges, stairs), warm-white fluorescent battens (kitchen, medical, physiotherapy, exercise hall, registration), bulbs in stores and technical rooms, pendants in the club hall. Every fixture is `light_state: "on"`; there are no broken or flickering lamps.
+- 526 ceiling fixtures: glass plafonds (guest rooms, corridors, offices, lounges, stairs), warm-white fluorescent battens (kitchen, medical, physiotherapy, exercise hall, registration), bulbs in stores and technical rooms, pendants in the club hall. `light_state`: 422 `on`, 29 `flicker`, 75 `broken` (dark glass, no light). Fixtures are named `Fix_<n>`, table lamps, floor lamps and sconces `Glow_<n>`.
+- The pendant lamps no longer Z-fight: the glowing inner side of the shade sits 1 cm inside the outer shell.
 - One point light per fixture, warm colour (2700–3200 K), spaced about 3 m apart so that no corner stays dark. Corridors have a plafond every 3 m.
 - 64 extra warm lights from floor lamps and wall sconces. Table lamp shades glow.
 - Afternoon sun and sky in the .blend.
 
 ## Materials and textures (new)
 
-All textures are generated procedurally by `tools/blender/texgen_interior.py` and are tileable. They follow the existing convention: `_BaseColor`, `_Normal` (OpenGL, +Y), `_ORM` (R = AO, G = roughness, B = metallic), `_Roughness`, `_AO`, plus `_Metallic` for metal sets. Surfaces are clean and freshly maintained: no cracks, water stains, mould or peeling; only light, even wear.
+All textures are generated procedurally by `tools/blender/texgen_interior.py` and are tileable. They follow the existing convention: `_BaseColor`, `_Normal` (OpenGL, +Y), `_ORM` (R = AO, G = roughness, B = metallic), `_Roughness`, `_AO`, plus `_Metallic` for metal sets. Every set has a fine film-grain noise with sparse dust specks (`texcore.grain`), so surfaces look new but grimy. On top of that there is light wear: scuffs and dirt near the skirting, faint water marks under ceilings, worn linoleum paths, darker tile grout.
 
 | Set | Use |
 |---|---|
@@ -158,5 +165,5 @@ Source layout (`tools/blender/sanatorium/`): `params.py` (dimensions), `exterior
 
 - No lightmap UV set; generate one in the engine. Baked lighting is not included.
 - Small detail (chair legs, balusters, bed rails, wheels, plants) uses alpha-tested quads from the shared atlases.
-- Doors are modelled closed and the elevator does not move; opening and travel belong to the engine (the swing zones and properties are prepared).
+- In the GLB/FBX files the doors are closed and the elevator does not move; in the Godot game they work (`game/`). Lift door leaves are separate objects (`LiftDoor_F<n>_L/R`, `LiftCabDoor_L/R`).
 - No separate reference image was provided, so the existing exterior model was used as the architectural reference.

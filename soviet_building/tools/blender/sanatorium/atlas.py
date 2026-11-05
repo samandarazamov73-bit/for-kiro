@@ -60,6 +60,8 @@ DECAL = [
     ("plant_3", 256, 384), ("plant_4", 256, 256), ("poster_7", 256, 384), ("poster_8", 256, 384),
     ("poster_9", 256, 384), ("poster_10", 256, 384), ("painting_3", 512, 256), ("welcome_banner", 512, 96),
     ("menu_phyto", 256, 192), ("buvette_sign", 256, 96), ("schedule_proc", 256, 192), ("arrow_spa", 256, 64),
+    # v3: half-abandoned mood
+    ("cobweb", 256, 256), ("dust_patch", 256, 256), ("leaves_dry", 256, 128), ("stain_small", 128, 128),
 ]
 
 SIGN_SIZE = 2048
