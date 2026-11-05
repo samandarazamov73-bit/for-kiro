@@ -150,12 +150,25 @@ class Plan:
 
 
 SIDE_KEY = {FRONT: "F", REAR: "R"}
+BATH_W, BATH_D = 1.9, 2.4          # en-suite bathroom of a 2-bay room
+
+
+def suite_rects(side, k0, k1, bw=BATH_W, bd=BATH_D):
+    """2-bay room with an en-suite bathroom in the corridor-side corner (west end).
+    Returns (room_rects, bath_rect, corridor_door_c, bath_door_c)."""
+    x0, _ = bay_x(k0)
+    _, x1 = bay_x(k1)
+    if side == FRONT:
+        yb0, yb1 = FRONT_Y1 - bd, FRONT_Y1
+        room = [(x0, x1, FRONT_Y0, yb0 - PART_T), (x0 + bw + PART_T, x1, yb0 - PART_T, FRONT_Y1)]
+    else:
+        yb0, yb1 = REAR_Y0, REAR_Y0 + bd
+        room = [(x0, x1, yb1 + PART_T, REAR_Y1), (x0 + bw + PART_T, x1, REAR_Y0, yb1 + PART_T)]
+    return room, (x0, x0 + bw, yb0, yb1), x0 + bw + PART_T + 0.75, (yb0 + yb1) / 2
 
 
 def build_plan():
     P = Plan()
-    corridor_common = dict(wall="paint_green", ceil="ceiling")
-
     # ======================= GROUND FLOOR (level 0) ==========================
     L = 0
     P.room(L, "SC", "Служебный коридор пищеблока", "Catering service corridor",
@@ -163,7 +176,7 @@ def build_plan():
            numbered=False, floor="tile_floor", wall="tile_wall")
     P.room(L, "C", "Коридор 1-го этажа", "Ground floor corridor",
            [(15.0 + PART_T / 2, MAIN_X1, CORR_Y0, CORR_Y1)], "corridor", "CIRC",
-           numbered=False, floor="terrazzo", **corridor_common)
+           numbered=False, floor="terrazzo", wall="paint_beige")
     P.door(L, "SC", "C", 8.1, w=1.4, kind="double", axis="y", ang=0)
 
     # --- entrance block ---
@@ -171,35 +184,34 @@ def build_plan():
            [(GLAZ_X + 0.05, 30.0, -REC_S1 + PART_T, -REC_S0 - PART_T)], "vestibule", "A_entrance",
            numbered=False, floor="terrazzo", wall="paint_beige", win="west",
            skip=[("x0", None, None, None, FFL, REC_TOP_Z)])
-    P.room(L, "EB_HALL", "Вестибюль", "Reception hall",
+    P.room(L, "EB_HALL", "Вестибюль и зона ожидания", "Reception hall and waiting area",
            [(30.12, 34.95, -13.0, 0.0), (ENT_IX0, 30.12, -REC_S0, 0.0), (27.06, 29.94, 0.0, CORR_Y0)],
-           "hall", "A_entrance", numbered=False, floor="terrazzo", wall="paint_beige")
-    P.room(L, "EB_WAIT", "Зона ожидания", "Waiting area",
+           "hall", "A_entrance", numbered=False, floor="terrazzo", wall="paint_peach")
+    P.room(L, "EB_BAR", "Фитобар и бювет минеральных вод", "Phyto-bar and mineral water buvette",
            [(ENT_IX0, 34.95, ENT_IY0, -13.0), (ENT_IX0, 30.12, -13.0, -REC_S1)],
-           "waiting", "A_entrance", numbered=False, floor="terrazzo", wall="paint_beige", win="south")
+           "phytobar", "S_spa", numbered=False, floor="linoleum_parquet", wall="paint_peach", win="south")
     ex0, ex1 = 35.07, ENT_IX1
-    P.room(L, "EB_E1", "Камера хранения", "Luggage storage", [(ex0, ex1, ENT_IY0, -16.31)],
-           "luggage", "A_entrance", win="east")
+    P.room(L, "EB_E1", "Камера хранения багажа", "Luggage storage", [(ex0, ex1, ENT_IY0, -16.31)],
+           "luggage", "A_entrance", win="east", floor="linoleum_brown")
     P.room(L, "EB_E2", "Гардероб", "Visitor coatroom", [(ex0, ex1, -16.19, -13.06)],
-           "coatroom", "A_entrance", win="east")
+           "coatroom", "A_entrance", win="east", floor="linoleum_brown")
     P.room(L, "EB_E3", "Регистратура", "Registration / reception desk", [(ex0, ex1, -12.94, -6.56)],
            "registration", "A_entrance", win="east", wall="wallpaper_a", floor="linoleum_parquet")
     P.room(L, "EB_E5", "Справочное бюро", "Information desk", [(ex0, ex1, -6.44, -3.31)],
-           "info", "A_entrance", win="east", floor="linoleum_parquet")
+           "info", "A_entrance", win="east", floor="linoleum_parquet", wall="paint_beige")
     P.room(L, "EB_E6", "Комната охраны", "Security / guard room", [(ex0, ex1, -3.19, -0.06)],
-           "guard", "A_entrance", win="east")
-    # vestibule partition: two glazed double doors aligned with the curtain-wall doors + glazing
+           "guard", "A_entrance", win="east", wall="paint_beige")
     for yc in (-4.275, -8.325):
         P.door(L, "EB_VEST", "EB_HALL", yc, w=1.35, kind="double_glazed", axis="y", ang=0)
     for yc, w in ((-10.4, 1.9), (-6.3, 1.9), (-2.25, 2.0)):
         P.door(L, "EB_VEST", "EB_HALL", yc, w=w, kind="window", sill=0.9, h=1.7, axis="y", sign=False)
-    P.door(L, "EB_E1", "EB_WAIT", -17.2, w=0.8, kind="std", ang=0)
-    P.door(L, "EB_E1", "EB_WAIT", -18.45, w=1.0, kind="counter", sill=0.95, h=1.0, sign=False)
-    P.door(L, "EB_E2", "EB_WAIT", -14.1, w=1.8, kind="counter", sill=0.95, h=1.15, sign=False)
-    P.door(L, "EB_E2", "EB_WAIT", -15.6, w=0.8, kind="std", ang=0, sign=False)
+    P.door(L, "EB_E1", "EB_BAR", -17.2, w=0.8, kind="std", ang=0)
+    P.door(L, "EB_E1", "EB_BAR", -18.45, w=1.0, kind="counter", sill=0.95, h=1.0, sign=False)
+    P.door(L, "EB_E2", "EB_BAR", -14.1, w=1.8, kind="counter", sill=0.95, h=1.15, sign=False)
+    P.door(L, "EB_E2", "EB_BAR", -15.6, w=0.8, kind="std", ang=0, sign=False)
     P.door(L, "EB_E3", "EB_HALL", -11.6, w=1.4, kind="window", sill=0.95, h=1.35, sign=False)
     P.door(L, "EB_E3", "EB_HALL", -9.6, w=1.4, kind="window", sill=0.95, h=1.35, sign=False)
-    P.door(L, "EB_E3", "EB_HALL", -7.3, w=0.9, kind="glazed", ang=12)
+    P.door(L, "EB_E3", "EB_HALL", -7.3, w=0.9, kind="glazed", ang=0)
     P.door(L, "EB_E5", "EB_HALL", -5.2, w=1.2, kind="window", sill=0.95, h=1.25, sign=False)
     P.door(L, "EB_E5", "EB_HALL", -3.85, w=0.8, kind="std", ang=0)
     P.door(L, "EB_E6", "EB_HALL", -2.2, w=1.2, kind="window", sill=0.9, h=1.2, sign=False)
@@ -207,7 +219,7 @@ def build_plan():
 
     # --- centre: main stair, elevator, machine room ---
     P.room(L, "STAIR1", "Лестница №1", "Main staircase", [(30.06, 35.94, FRONT_Y0, FRONT_Y1)],
-           "stair_main", "CIRC", numbered=False, z1=LEVELS[3] + CEIL_H, wall="paint_green", floor="terrazzo")
+           "stair_main", "CIRC", numbered=False, z1=LEVELS[3] + CEIL_H, wall="paint_beige", floor="terrazzo")
     P.room(L, "SHAFT", "Шахта лифта", "Elevator shaft", [(SHAFT[0], SHAFT[1], SHAFT[2], SHAFT[3])],
            "shaft", "CIRC", numbered=False, z0=SHAFT_PIT_Z, z1=SHAFT_TOP_Z, wall="concrete", floor="concrete",
            ceil="concrete")
@@ -223,37 +235,32 @@ def build_plan():
             P.door(l, "L0.STAIR1", "C", 30.78, w=1.1, kind="double_glazed", ang=0, sign=False)
 
     # --- west: catering block ---
-    P.bay_room(L, FRONT, 0, 0, "Заготовочный цех", "Food preparation room", "food_prep", "D_catering",
-               wall="tile_wall", floor="tile_floor")
+    cat = dict(wall="tile_wall", floor="tile_floor")
+    P.bay_room(L, FRONT, 0, 0, "Заготовочный цех", "Food preparation room", "food_prep", "D_catering", **cat)
     P.bay_room(L, FRONT, 1, 2, "Горячий цех (кухня)", "Kitchen (hot shop)", "kitchen", "D_catering",
-               door_c=bay_cx(2), door_kw=dict(w=1.0, kind="metal_glazed", ang=25), wall="tile_wall", floor="tile_floor")
-    P.door(L, "F0", "F1", 5.4, w=0.9, kind="std", axis="y", ang=70, sign=False)
-    P.bay_room(L, FRONT, 3, 3, "Раздаточная", "Food distribution counter", "distribution", "D_catering",
-               wall="tile_wall", floor="tile_floor")
-    P.door(L, "F1", "F3", 5.4, w=1.0, kind="std", axis="y", ang=90, sign=False)
+               door_c=bay_cx(2), door_kw=dict(w=1.0, kind="metal_glazed"), **cat)
+    P.door(L, "F0", "F1", 5.4, w=0.9, kind="std", axis="y", sign=False)
+    P.bay_room(L, FRONT, 3, 3, "Раздаточная", "Food distribution counter", "distribution", "D_catering", **cat)
+    P.door(L, "F1", "F3", 5.4, w=1.0, kind="std", axis="y", sign=False)
     P.bay_room(L, FRONT, 4, 6, "Обеденный зал", "Dining hall", "dining", "D_catering",
                door_c=18.0 + 1.6, door_kw=dict(w=1.4, kind="double_glazed", ang=0), wall="paint_peach",
-               floor="tile_floor")
+               floor="linoleum_parquet")
     P.door(L, "F3", "F4", 3.2, w=2.4, kind="counter", sill=0.9, h=1.1, axis="y", sign=False)
-    P.bay_room(L, FRONT, 7, 7, "Моечная столовой посуды", "Dishwashing room", "dishwash", "D_catering",
-               wall="tile_wall", floor="tile_floor")
+    P.bay_room(L, FRONT, 7, 7, "Моечная столовой посуды", "Dishwashing room", "dishwash", "D_catering", **cat)
     P.door(L, "F7", "F4", 3.0, w=1.2, kind="counter", sill=0.9, h=1.0, axis="y", sign=False)
     o, i, cxo, cxi = split_L(FRONT, 8)
     P.room(L, "F8", "Бельевая (чистое бельё)", "Clean linen storage", o, "clean_linen", "E_technical", win=FRONT,
            wall="paint_blue")
-    P.room(L, "F8i", "Грязное бельё", "Dirty linen collection", i, "dirty_linen", "E_technical",
-           wall="tile_wall", floor="tile_floor")
+    P.room(L, "F8i", "Грязное бельё", "Dirty linen collection", i, "dirty_linen", "E_technical", **cat)
     P.door(L, "F8", "C", cxo, w=0.8)
     P.door(L, "F8i", "C", cxi, w=0.8, kind="metal")
     o, i, cxo, cxi = split_L(REAR, 0)
-    P.room(L, "R0", "Овощной цех", "Vegetable preparation room", o, "veg_prep", "D_catering", win=REAR,
-           wall="tile_wall", floor="tile_floor")
-    P.room(L, "R0i", "Камера пищевых отходов", "Waste collection room", i, "waste", "E_technical",
-           wall="tile_wall", floor="tile_floor")
-    P.door(L, "R0", "SC", cxo, w=0.8, ang=35)
+    P.room(L, "R0", "Овощной цех", "Vegetable preparation room", o, "veg_prep", "D_catering", win=REAR, **cat)
+    P.room(L, "R0i", "Камера пищевых отходов", "Waste collection room", i, "waste", "E_technical", **cat)
+    P.door(L, "R0", "SC", cxo, w=0.8)
     P.door(L, "R0i", "SC", cxi, w=0.8, kind="metal")
     P.room(L, "STAIR2", "Лестница №2", "West staircase", [(3.06, 8.94, REAR_Y0, REAR_Y1)], "stair_end", "CIRC",
-           numbered=False, z1=LEVELS[3] + CEIL_H, wall="paint_green", floor="terrazzo")
+           numbered=False, z1=LEVELS[3] + CEIL_H, wall="paint_beige", floor="terrazzo")
     P.doors.append(Door(0, "L0.STAIR2", "EXT", REAR_EXITS[0], w=1.5, kind="steel_double", h=2.4,
                         ext=("y", REAR_Y1), sign=False))
     for l in range(4):
@@ -262,19 +269,17 @@ def build_plan():
     o, i = split_FB(REAR, 3)
     P.room(L, "R3", "Кладовая сухих продуктов", "Dry food storage", o, "dry_store", "D_catering", win=REAR,
            wall="paint_blue", floor="tile_floor")
-    P.room(L, "R3i", "Охлаждаемая камера", "Refrigerated storage", i, "fridge", "D_catering",
-           wall="tile_wall", floor="tile_floor")
+    P.room(L, "R3i", "Охлаждаемая камера", "Refrigerated storage", i, "fridge", "D_catering", **cat)
     P.door(L, "R3i", "SC", bay_cx(3) - 0.6, w=0.9, kind="metal")
     P.door(L, "R3", "R3i", bay_cx(3) + 0.8, w=0.8, kind="std", axis="x", sign=False)
     o, i, cxo, cxi = split_L(REAR, 4)
     P.room(L, "R4", "Гардероб персонала пищеблока", "Kitchen staff changing room", o, "kitchen_changing",
            "D_catering", win=REAR, wall="paint_blue")
-    P.room(L, "R4i", "Санузел персонала пищеблока", "Kitchen staff restroom", i, "kitchen_wc", "D_catering",
-           wall="tile_wall", floor="tile_floor")
+    P.room(L, "R4i", "Санузел персонала пищеблока", "Kitchen staff restroom", i, "staff_wc", "D_catering", **cat)
     P.door(L, "R4", "SC", cxo, w=0.8)
     P.door(L, "R4i", "SC", cxi, w=0.8, kind="wc_door")
-    P.bay_room(L, REAR, 5, 5, "Столовая для персонала", "Staff dining room", "staff_dining", "D_catering",
-               wall="paint_peach")
+    P.bay_room(L, REAR, 5, 5, "Столовая и комната отдыха персонала", "Staff dining room and staff room",
+               "staff_dining", "D_catering", wall="paint_peach", floor="linoleum_parquet")
     o, i, cxo, cxi = split_L(REAR, 6)
     P.room(L, "R6", "Водомерный узел и тепловой пункт", "Water & plumbing service room", o, "plumbing",
            "E_technical", win=REAR, wall="plaster", floor="concrete")
@@ -289,91 +294,80 @@ def build_plan():
            wall="plaster", floor="concrete")
     P.room(L, "R8i", "Кладовая хозяйственная", "General storage room", i, "storage", "E_technical",
            wall="plaster", floor="concrete")
-    P.door(L, "R8", "C", cxo, w=0.8, ang=20)
+    P.door(L, "R8", "C", cxo, w=0.8)
     P.door(L, "R8i", "C", cxi, w=0.8)
 
-    # --- east: administration (front) ---
-    adm = dict(dept="B_admin", floor="linoleum_parquet")
-    P.bay_room(L, FRONT, 13, 13, "Приёмная. Секретарь", "Secretary's office", "secretary", wall="wallpaper_a",
-               door_kw=dict(kind="glazed", ang=8), **adm)
-    P.bay_room(L, FRONT, 14, 14, "Главный врач (директор)", "Director's office", "director", wall="wallpaper_b",
-               door_c=False, **adm)
-    P.door(L, "F14", "F13", 4.9, w=0.9, kind="padded", axis="y", sign=True)
-    P.bay_room(L, FRONT, 15, 15, "Заместитель главного врача", "Deputy director's office", "deputy",
-               wall="wallpaper_a", **adm)
-    P.bay_room(L, FRONT, 16, 16, "Главный администратор", "Chief administrator's office", "chief_admin",
-               wall="paint_beige", door_kw=dict(ang=30), **adm)
-    P.bay_room(L, FRONT, 17, 17, "Бухгалтерия", "Accountant's office", "accountant", wall="paint_beige",
-               door_kw=dict(kind="glazed"), **adm)
-    P.bay_room(L, FRONT, 18, 18, "Отдел кадров", "Human resources office", "hr", wall="wallpaper_a", **adm)
-    P.bay_room(L, FRONT, 19, 19, "Административный отдел", "General administration office", "admin_office",
-               wall="paint_beige", door_kw=dict(kind="glazed", ang=45), **adm)
-    P.bay_room(L, FRONT, 20, 20, "Зал совещаний", "Staff meeting room", "meeting", wall="wallpaper_b",
-               door_kw=dict(kind="double", w=1.3), **adm)
-    P.bay_room(L, FRONT, 21, 21, "Старшая медицинская сестра", "Head nurse's office", "head_nurse",
-               wall="paint_blue", **adm)
-    P.bay_room(L, FRONT, 22, 22, "Комната отдыха персонала", "Staff room", "staff_room", wall="wallpaper_a",
-               door_kw=dict(ang=60), **adm)
-    o, i, cxo, cxi = split_L(FRONT, 23)
-    P.room(L, "F23", "Гардероб медперсонала", "Medical staff changing room", o, "med_changing", "C_medical",
-           win=FRONT, wall="paint_blue")
-    P.room(L, "F23i", "Санузел медперсонала", "Medical staff restroom", i, "med_wc", "C_medical",
-           wall="tile_wall", floor="tile_floor")
-    P.door(L, "F23", "C", cxo, w=0.8)
-    P.door(L, "F23i", "C", cxi, w=0.8, kind="wc_door")
-    o, i, cxo, cxi = split_L(FRONT, 24)
-    P.room(L, "F24", "Архив документов", "Document archive", o, "archive", "B_admin", win=FRONT,
-           wall="plaster", floor="linoleum_brown")
-    P.room(L, "F24i", "Хранилище личных дел", "Records storage room", i, "records", "B_admin",
-           wall="plaster", floor="linoleum_brown")
-    P.door(L, "F24", "C", cxo, w=0.8, kind="metal")
-    P.door(L, "F24i", "C", cxi, w=0.8, kind="metal")
+    # --- east front: 2 offices + treatment-resort (spa) department ---
+    P.bay_room(L, FRONT, 13, 13, "Главный врач", "Chief physician (director)", "director", "B_admin",
+               door_kw=dict(kind="padded"), wall="wallpaper_b", floor="linoleum_parquet")
+    P.bay_room(L, FRONT, 14, 14, "Администрация и бухгалтерия", "Administration and accounts", "admin_office",
+               "B_admin", door_kw=dict(kind="glazed"), wall="wallpaper_a", floor="linoleum_parquet")
+    spa = dict(dept="S_spa")
+    P.bay_room(L, FRONT, 15, 16, "Массажный кабинет", "Massage room", "massage", door_c=bay_cx(15, 16),
+               door_kw=dict(w=1.0, kind="wide"), wall="paint_peach", floor="linoleum_parquet", **spa)
+    P.bay_room(L, FRONT, 17, 18, "Кабинет физиотерапии", "Physiotherapy room", "physio", door_c=bay_cx(17, 18),
+               door_kw=dict(w=1.0, kind="wide"), wall="paint_blue", floor="linoleum_brown", **spa)
+    P.bay_room(L, FRONT, 19, 20, "Ингаляторий и соляная комната", "Inhalation and salt room", "salt_room",
+               door_c=bay_cx(19, 20), door_kw=dict(w=1.0, kind="wide"), wall="salt_brick",
+               floor="linoleum_parquet", **spa)
+    P.bay_room(L, FRONT, 21, 22, "Водолечебница (лечебные ванны и души)", "Hydrotherapy (baths and showers)",
+               "hydro", door_c=bay_cx(21, 22), door_kw=dict(w=1.3, kind="double"), wall="tile_wall",
+               floor="tile_floor", **spa)
+    P.bay_room(L, FRONT, 23, 24, "Зал лечебной физкультуры (ЛФК)", "Therapeutic exercise hall", "lfk",
+               door_c=bay_cx(23, 24), door_kw=dict(w=1.3, kind="double"), wall="paint_peach",
+               floor="linoleum_parquet", **spa)
 
-    # --- east: public WCs + medical department (rear) ---
+    # --- east rear: public WCs + medical department ---
+    wc = dict(wall="tile_wall", floor="tile_floor")
     P.bay_room(L, REAR, 9, 9, "Туалет мужской", "Public men's restroom", "wc_men", "A_entrance",
-               door_kw=dict(w=1.0, kind="wc_door"), wall="tile_wall", floor="tile_floor")
+               door_kw=dict(w=1.0, kind="wc_door"), **wc)
     P.bay_room(L, REAR, 10, 10, "Туалет женский", "Public women's restroom", "wc_women", "A_entrance",
-               door_kw=dict(w=1.0, kind="wc_door"), wall="tile_wall", floor="tile_floor")
+               door_kw=dict(w=1.0, kind="wc_door"), **wc)
     o, i, cxo, cxi = split_L(REAR, 11)
-    P.room(L, "R11", "Комната уборщиц", "Janitor's room", o, "janitor", "E_technical", win=REAR,
-           wall="paint_blue")
+    P.room(L, "R11", "Комната уборщиц", "Janitor's room", o, "janitor", "E_technical", win=REAR, wall="paint_blue")
     P.room(L, "R11i", "Кладовая уборочного инвентаря", "Cleaning equipment storage", i, "cleaning_store",
-           "A_entrance", wall="tile_wall", floor="tile_floor")
+           "A_entrance", **wc)
     P.door(L, "R11", "C", cxo, w=0.8)
-    P.door(L, "R11i", "C", cxi, w=0.8, ang=40)
+    P.door(L, "R11i", "C", cxi, w=0.8)
     o, i = split_FB(REAR, 12)
     P.room(L, "R12", "Медицинская регистратура", "Medical registration office", i, "med_reg", "C_medical",
            wall="paint_blue", floor="linoleum_parquet")
     P.room(L, "R12o", "Медицинский архив (картотека)", "Medical archive", o, "med_archive", "C_medical",
-           win=REAR, wall="plaster")
+           win=REAR, wall="plaster", floor="linoleum_brown")
     P.door(L, "R12", "C", bay_cx(12) + 0.6, w=0.9, kind="glazed")
     P.door(L, "R12", "C", bay_cx(12) - 0.75, w=1.0, kind="counter", sill=0.95, h=1.0, sign=False)
-    P.door(L, "R12o", "R12", bay_cx(12) - 0.7, w=0.8, kind="metal", axis="x", sign=False)
-    med = dict(dept="C_medical", wall="paint_blue")
+    P.door(L, "R12o", "R12", bay_cx(12) - 0.7, w=0.8, kind="std", axis="x", sign=False)
+    med = dict(dept="C_medical", wall="paint_blue", floor="linoleum_brown")
     P.bay_room(L, REAR, 13, 13, "Кабинет терапевта", "General practitioner's office", "gp",
                door_kw=dict(kind="glazed"), **med)
     P.bay_room(L, REAR, 14, 14, "Смотровой кабинет", "Medical examination room", "exam", **med)
-    P.door(L, "R13", "R14", 13.2, w=0.8, axis="y", ang=0, sign=False)
-    P.bay_room(L, REAR, 15, 15, "Кабинет врача-консультанта", "Doctor's consultation room", "consult",
-               door_kw=dict(ang=15), **med)
-    P.bay_room(L, REAR, 16, 16, "Кабинет медицинской сестры", "Nurse's office", "nurse_office", **med)
+    P.door(L, "R13", "R14", 13.2, w=0.8, axis="y", sign=False, swing="b")
+    P.bay_room(L, REAR, 15, 15, "Кабинет врача-консультанта", "Doctor's consultation room", "consult", **med)
+    P.bay_room(L, REAR, 16, 16, "Кабинет медицинских сестёр", "Nurses' office (head nurse)", "nurse_office", **med)
     P.bay_room(L, REAR, 17, 17, "Процедурный кабинет", "Treatment and injection room", "treatment",
-               dept="C_medical", wall="tile_wall", floor="tile_floor")
-    P.bay_room(L, REAR, 18, 18, "Кабинет забора крови", "Blood sampling room", "blood",
-               dept="C_medical", wall="tile_wall", floor="tile_floor", door_kw=dict(ang=50))
-    P.bay_room(L, REAR, 19, 19, "Клиническая лаборатория", "Small laboratory", "lab",
-               dept="C_medical", wall="tile_wall", floor="tile_floor")
-    P.bay_room(L, REAR, 20, 20, "Медпункт (первая помощь)", "First aid room", "first_aid",
-               dept="C_medical", wall="paint_blue", floor="tile_floor", door_kw=dict(w=1.0, kind="wide"))
-    o, i, cxo, cxi = split_L(REAR, 21)
-    P.room(L, "R21", "Склад медицинского оборудования", "Medical equipment storage", o, "med_equip",
+               dept="C_medical", **wc)
+    o, i = split_FB(REAR, 18)
+    P.room(L, "R18", "Кабинет забора крови", "Blood sampling room", i, "blood", "C_medical", **wc)
+    P.room(L, "R18o", "Клиническая лаборатория", "Small laboratory", o, "lab", "C_medical", win=REAR, **wc)
+    P.door(L, "R18", "C", bay_cx(18), w=0.9)
+    P.door(L, "R18o", "R18", bay_cx(18) - 0.7, w=0.8, axis="x", sign=False)
+    P.bay_room(L, REAR, 19, 19, "Медпункт (первая помощь)", "First aid room", "first_aid", "C_medical",
+               door_kw=dict(w=1.0, kind="wide"), wall="paint_blue", floor="tile_floor")
+    o, i, cxo, cxi = split_L(REAR, 20)
+    P.room(L, "R20", "Склад медицинского оборудования", "Medical equipment storage", o, "med_equip",
            "C_medical", win=REAR, wall="plaster")
-    P.room(L, "R21i", "Склад медикаментов", "Medical supplies storage", i, "med_supplies", "C_medical",
+    P.room(L, "R20i", "Склад медикаментов", "Medical supplies storage", i, "med_supplies", "C_medical",
            wall="paint_blue")
-    P.door(L, "R21", "C", cxo, w=0.8, kind="metal")
-    P.door(L, "R21i", "C", cxi, w=0.8, kind="metal")
+    P.door(L, "R20", "C", cxo, w=0.8, kind="metal")
+    P.door(L, "R20i", "C", cxi, w=0.8, kind="metal")
+    o, i, cxo, cxi = split_L(REAR, 21)
+    P.room(L, "R21", "Гардероб медперсонала", "Medical staff changing room", o, "med_changing", "C_medical",
+           win=REAR, wall="paint_blue")
+    P.room(L, "R21i", "Санузел медперсонала", "Medical staff restroom", i, "staff_wc", "C_medical", **wc)
+    P.door(L, "R21", "C", cxo, w=0.8)
+    P.door(L, "R21i", "C", cxi, w=0.8, kind="wc_door")
     P.room(L, "STAIR3", "Лестница №3", "East staircase", [(66.06, 71.94, REAR_Y0, REAR_Y1)], "stair_end",
-           "CIRC", numbered=False, z1=LEVELS[3] + CEIL_H, wall="paint_green", floor="terrazzo")
+           "CIRC", numbered=False, z1=LEVELS[3] + CEIL_H, wall="paint_beige", floor="terrazzo")
     P.doors.append(Door(0, "L0.STAIR3", "EXT", REAR_EXITS[1], w=1.5, kind="steel_double", h=2.4,
                         ext=("y", REAR_Y1), sign=False))
     for l in range(4):
@@ -381,8 +375,7 @@ def build_plan():
     o, i, cxo, cxi = split_L(REAR, 24)
     P.room(L, "R24", "Гардероб персонала", "Staff changing room", o, "staff_changing", "E_technical",
            win=REAR, wall="paint_blue")
-    P.room(L, "R24i", "Хозяйственная (уборочная)", "Utility room", i, "utility", "E_technical",
-           wall="tile_wall", floor="tile_floor")
+    P.room(L, "R24i", "Хозяйственная (уборочная)", "Utility room", i, "utility", "E_technical", **wc)
     P.door(L, "R24", "C", cxo, w=0.8)
     P.door(L, "R24i", "C", cxi, w=0.8, kind="metal")
 
@@ -391,13 +384,12 @@ def build_plan():
         patient_floor(P, L)
 
     # club hall (entrance block, double height, level 1)
-    P.room(1, "EB_HALL", "Клубный зал (зал отдыха)", "Club hall / patient lounge",
-           [(ENT_IX0, ENT_IX1, ENT_IY0, -0.06)], "club_hall", "P_patient", z1=HALL_CEIL,
-           wall="paint_peach", floor="linoleum_parquet", upper_wall="plaster", win="south")
+    P.room(1, "EB_HALL", "Клубный зал", "Club hall", [(ENT_IX0, ENT_IX1, ENT_IY0, -0.06)], "club_hall",
+           "P_patient", z1=HALL_CEIL, wall="paint_peach", floor="linoleum_parquet", upper_wall="plaster",
+           win="south")
     P.door(1, "F9", "EB_HALL", 28.5, w=1.4, kind="double_glazed", axis="x", ang=0)
     P.door(1, "L0.STAIR1", "EB_HALL", 33.0, w=1.4, kind="double_glazed", axis="x", ang=0, sign=False)
     P.door(1, "F12", "EB_HALL", 37.5, w=0.9, kind="std", axis="x")
-    # stair lobby window over the hall (level 2) and projection ports (level 2 booth)
     P.door(2, "L0.STAIR1", "L1.EB_HALL", 33.0, w=2.0, kind="window", sill=0.9, h=1.4, axis="x", sign=False)
     for x in (28.0, 29.0):
         P.door(2, "F9", "L1.EB_HALL", x, w=0.32, kind="port", sill=1.15, h=0.26, axis="x", sign=False)
@@ -414,97 +406,107 @@ def renumber(P):
         def key(r):
             x0, x1, y0, y1 = r.bbox
             if y1 <= 0.01:      # entrance block
-                return (0, -((y0 + y1) / 2) * -1, 0)
+                return (0, (y0 + y1) / 2, 0)
             return (1, round((x0 + x1) / 2, 1), 0 if y0 < CORR_Y0 else 1)
         for i, r in enumerate(sorted(rs, key=key)):
             r.num = f"{lvl + 1}{i + 1:02d}"
 
 
+ROOM_WALLS = ["wallpaper_a", "paint_peach", "wallpaper_b", "paint_beige"]
+
+
 def patient_floor(P, L):
     pf = dict(dept="P_patient")
+    corr_wall = {1: "paint_peach", 2: "paint_beige", 3: "paint_peach"}[L]
     P.room(L, "C", f"Коридор {L + 1}-го этажа", f"Floor {L + 1} corridor", [(MAIN_X0, MAIN_X1, CORR_Y0, CORR_Y1)],
-           "corridor_patient", "CIRC", numbered=False, wall="paint_green", floor="linoleum_brown")
-    walls = ["wallpaper_a", "paint_beige", "wallpaper_b", "paint_peach"]
-    floors = ["linoleum_brown", "linoleum_parquet"]
-    n = [0]
+           "corridor_patient", "CIRC", numbered=False, wall=corr_wall, floor="linoleum_brown")
+    cnt = [0]
 
-    def patient(side, k, kind="patient_double", k1=None, **kw):
-        n[0] += 1
-        ru = {"patient_single": "Палата одноместная", "patient_double": "Палата двухместная",
-              "patient_assisted": "Палата для маломобильных пациентов"}[kind]
-        en = {"patient_single": "Single patient bedroom", "patient_double": "Double patient bedroom",
-              "patient_assisted": "Assisted-care room (2 beds)"}[kind]
-        w = walls[(k * 3 + L + (side == REAR)) % len(walls)]
-        f = floors[(k + L) % 2]
-        dk = dict(ang=[0, 0, 15, 0, 35, 0, 0, 80][(k * 5 + L * 3 + (side == REAR)) % 8])
-        if kind == "patient_assisted":
-            dk.update(w=1.0, kind="wide")
-        P.bay_room(L, side, k, k if k1 is None else k1, ru, en, kind, door_kw=dk, wall=w, floor=f, **pf, **kw)
+    def style():
+        cnt[0] += 1
+        return dict(wall=ROOM_WALLS[(cnt[0] + L) % len(ROOM_WALLS)],
+                    floor="linoleum_parquet" if (cnt[0] + L) % 3 else "linoleum_brown")
 
-    # front: rooms in bays 0..8 and 13..24 (bays 10-11 stair, 12 lift)
-    single_bays = {0, 3, 7, 17, 22} if L == 1 else ({1, 5, 8, 18, 24} if L == 2 else {2, 6, 16, 20, 23})
-    for k in range(0, 9):
-        patient(FRONT, k, "patient_single" if k in single_bays else "patient_double")
+    def double(side, k0, assisted=False):
+        key = f"{SIDE_KEY[side]}{k0}"
+        if assisted:
+            room, bath, dc, bc = suite_rects(side, k0, k0 + 1, bw=2.2, bd=2.78)
+            P.room(L, key, "Номер для маломобильных отдыхающих (2 места)", "Assisted-care room (2 beds)", room,
+                   "suite_assisted", "P_patient", win=side, wall="paint_peach", floor="linoleum_parquet")
+            P.room(L, key + "b", "Санузел номера (доступный)", "Accessible en-suite bathroom", [bath],
+                   "suite_bath_access", "P_patient", numbered=False, wall="tile_wall", floor="tile_floor")
+            P.door(L, key, "C", dc + 0.2, w=1.1, kind="wide")
+            P.door(L, key + "b", key, bc, w=0.9, kind="wide", axis="y", sign=False, swing="b")
+        else:
+            room, bath, dc, bc = suite_rects(side, k0, k0 + 1)
+            P.room(L, key, "Номер двухместный", "Double room with bathroom", room, "suite_double", "P_patient",
+                   win=side, **style())
+            P.room(L, key + "b", "Санузел номера", "En-suite bathroom", [bath], "suite_bath", "P_patient",
+                   numbered=False, wall="tile_wall", floor="tile_floor")
+            P.door(L, key, "C", dc, w=0.9)
+            P.door(L, key + "b", key, bc, w=0.8, kind="wc_door", axis="y", sign=False, swing="b")
+
+    def single(side, k):
+        key = f"{SIDE_KEY[side]}{k}"
+        o, i, cxo, cxi = split_L(side, k)
+        P.room(L, key, "Номер одноместный", "Single room with bathroom", o, "suite_single", "P_patient", win=side,
+               **style())
+        P.room(L, key + "b", "Санузел номера", "En-suite bathroom", i, "suite_bath", "P_patient", numbered=False,
+               wall="tile_wall", floor="tile_floor")
+        P.door(L, key, "C", cxo, w=0.9)
+        y0, y1 = i[0][2], i[0][3]
+        P.door(L, key + "b", key, (y0 + y1) / 2, w=0.7, kind="wc_door", axis="y", sign=False, swing="b")
+
+    # ---- front side ----
+    for k in (0, 2, 4, 6):
+        double(FRONT, k)
+    single(FRONT, 8)
     if L == 1:
-        # assisted-care rooms near the lift, each with an en-suite accessible bathroom
-        for k0 in (13, 15):
-            x0, _ = bay_x(k0)
-            _, x1 = bay_x(k0 + 1)
-            n[0] += 1
-            key = f"F{k0}"
-            xb = x0 + 2.2
-            P.room(L, key, "Палата для маломобильных пациентов", "Assisted-care room (2 beds)",
-                   [(x0, x1, FRONT_Y0, 3.6), (xb + PART_T, x1, 3.6, FRONT_Y1)], "patient_assisted", "P_patient",
-                   win=FRONT, wall="paint_peach", floor="linoleum_brown")
-            P.room(L, key + "b", "Санузел палаты (доступный)", "Accessible en-suite bathroom",
-                   [(x0, xb, 3.72, FRONT_Y1)], "assisted_bath", "P_patient", numbered=False,
-                   wall="tile_wall", floor="tile_floor")
-            P.door(L, key, "C", (xb + PART_T + x1) / 2, w=1.1, kind="wide", ang=20)
-            P.door(L, key + "b", key, x0 + 1.4, w=0.9, kind="wide", axis="x", sign=False, ang=60)
-        for k in range(17, 25):
-            patient(FRONT, k, "patient_single" if k in single_bays else "patient_double")
         P.room(L, "F9", "Фойе клубного зала", "Club hall foyer", [(27.06, 29.94, FRONT_Y0, CORR_Y0)], "foyer",
                "P_patient", numbered=False, wall="paint_peach", floor="linoleum_parquet")
         P.room(L, "F12", "Кладовая клубного зала", "Club hall storeroom", [(36.06, 38.94, FRONT_Y0, 3.5)],
-               "hall_store", "P_patient", wall="plaster")
+               "hall_store", "P_patient", wall="plaster", floor="linoleum_brown")
+        double(FRONT, 13, assisted=True)
+        double(FRONT, 15, assisted=True)
     else:
-        P.room(L, "F13", "Ординаторская (кабинет персонала)", "Staff office",
-               [slot(FRONT, 13), (36.06, 39.06, FRONT_Y0, 3.5)], "staff_office", "P_patient", win=FRONT,
-               wall="paint_blue", floor="linoleum_parquet")
-        P.door(L, "F13", "C", bay_cx(13), w=0.9, kind="glazed")
-        for k in range(14, 25):
-            patient(FRONT, k, "patient_single" if k in single_bays else "patient_double")
         if L == 2:
-            P.room(L, "F9", "Кинопроекционная", "Projection booth (club hall)", [slot(FRONT, 9)], "projection",
-                   "P_patient", wall="plaster", floor="linoleum_brown")
-            P.door(L, "F9", "C", bay_cx(9), w=0.8, kind="metal")
+            P.bay_room(L, FRONT, 9, 9, "Кинопроекционная", "Projection booth (club hall)", "projection",
+                       "P_patient", door_kw=dict(kind="metal"), wall="plaster", floor="linoleum_brown")
         else:
-            patient(FRONT, 9, "patient_single")
+            P.bay_room(L, FRONT, 9, 9, "Библиотека и читальня", "Library and reading room", "library",
+                       "P_patient", wall="wallpaper_b", floor="linoleum_parquet")
+        P.room(L, "F13", "Ординаторская", "Doctors' and staff office", [slot(FRONT, 13), (36.06, 39.06, FRONT_Y0, 3.5)],
+               "staff_office", "P_patient", win=FRONT, wall="paint_blue", floor="linoleum_parquet")
+        P.door(L, "F13", "C", bay_cx(13), w=0.9, kind="glazed")
+        single(FRONT, 14)
+        double(FRONT, 15)
+    for k in (17, 19, 21, 23):
+        double(FRONT, k)
 
-    # rear side
-    patient(REAR, 0, "patient_double")
-    patient(REAR, 3, "patient_single" if L != 2 else "patient_double")
-    for k, g in ((4, "m"), (5, "f"), (19, "m"), (20, "f")):
+    # ---- rear side ----
+    single(REAR, 0)
+    double(REAR, 3)
+    for k, g in ((5, "m"), (6, "f")):
         ru = "Санузел и душевая мужские" if g == "m" else "Санузел и душевая женские"
         en = "Shared bathroom, men (WC + showers)" if g == "m" else "Shared bathroom, women (WC + showers)"
         P.bay_room(L, REAR, k, k, ru, en, f"wc_shower_{g}", "P_patient", door_kw=dict(w=1.0, kind="wc_door"),
                    wall="tile_wall", floor="tile_floor")
-    for k in (6, 7, 8):
-        patient(REAR, k, "patient_double" if k != 7 else "patient_single")
-    # nursing cluster opposite the core
+    P.bay_room(L, REAR, 7, 8, "Холл отдыха", "Lounge (TV, games, library corner)", "lounge", "P_patient",
+               door_c=bay_cx(7, 8), door_kw=dict(w=1.4, kind="double_glazed", ang=0), wall="wallpaper_b",
+               floor="linoleum_parquet")
     x0, x1, _, _ = slot(REAR, 9)
     P.room(L, "R9", "Пост дежурной медсестры", "Nursing station", [(x0, x1, CORR_Y1, REAR_Y0 + INNER_D)],
            "nurse_post", "P_patient", numbered=False, wall="paint_blue", floor="linoleum_brown")
     P.room(L, "R9o", "Кабинет медсестры", "Nurse's office", [(x0, x1, REAR_Y0 + INNER_D + PART_T, REAR_Y1)],
-           "nurse_office_floor", "P_patient", win=REAR, wall="paint_blue")
+           "nurse_office_floor", "P_patient", win=REAR, wall="paint_blue", floor="linoleum_brown")
     P.door(L, "R9o", "R9", bay_cx(9) + 0.7, w=0.8, kind="glazed", axis="x")
     P.bay_room(L, REAR, 10, 10, "Процедурный кабинет", "Treatment room", "treatment_small", "P_patient",
                wall="tile_wall", floor="tile_floor")
     o, i = split_FB(REAR, 11)
     P.room(L, "R11", "Комната сестры-хозяйки", "Housekeeping room", i, "housekeeping", "P_patient",
-           wall="paint_blue")
+           wall="paint_blue", floor="linoleum_brown")
     P.room(L, "R11o", "Бельевая (чистое бельё)", "Clean linen storage", o, "clean_linen", "P_patient",
-           win=REAR, wall="paint_blue")
+           win=REAR, wall="paint_blue", floor="linoleum_brown")
     P.door(L, "R11", "C", bay_cx(11), w=0.9)
     P.door(L, "R11o", "R11", bay_cx(11) - 0.7, w=0.8, axis="x")
     P.bay_room(L, REAR, 12, 12, "Санузел для маломобильных", "Accessible bathroom", "access_bath", "P_patient",
@@ -515,28 +517,17 @@ def patient_floor(P, L):
                wall="paint_blue", floor="linoleum_parquet")
     else:
         P.room(L, "R13", "Медицинская кладовая", "Medical storage", o, "med_storage", "P_patient", win=REAR,
-               wall="paint_blue")
+               wall="paint_blue", floor="linoleum_brown")
     P.room(L, "R13i", "Комната грязного белья", "Dirty linen collection", i, "dirty_linen", "P_patient",
            wall="tile_wall", floor="tile_floor")
     P.door(L, "R13", "C", cxo, w=0.8)
     P.door(L, "R13i", "C", cxi, w=0.8, kind="metal")
-    if L == 1:
-        for k in (14, 15, 16, 17, 18):
-            patient(REAR, k, "patient_single" if k in (15, 18) else "patient_double")
-    else:
-        P.bay_room(L, REAR, 14, 15, "Холл отдыха пациентов", "Patient relaxation lounge", "lounge", "P_patient",
-                   door_c=bay_cx(14, 15), door_kw=dict(w=1.4, kind="double_glazed", ang=0),
-                   wall="wallpaper_b", floor="linoleum_parquet")
-        for k in (16, 17, 18):
-            patient(REAR, k, "patient_double" if k != 17 else "patient_single")
-    if L == 1:
-        patient(REAR, 21, "patient_double")
-    else:
-        o, i, cxo, cxi = split_L(REAR, 21)
-        P.room(L, "R21i", "Хозяйственная кладовая", "Utility room", i, "utility", "P_patient",
-               wall="tile_wall", floor="tile_floor")
-        P.door(L, "R21i", "C", cxi, w=0.8, kind="metal")
-        P.room(L, "R21", "Палата одноместная", "Single patient bedroom", o, "patient_single", "P_patient", win=REAR,
-               wall="wallpaper_a", floor="linoleum_brown")
-        P.door(L, "R21", "C", cxo, w=0.8)
-    patient(REAR, 24, "patient_double")
+    for k in (14, 16, 18, 20):
+        double(REAR, k)
+    o, i, cxo, cxi = split_L(REAR, 24)
+    P.room(L, "R24", "Хозяйственная кладовая", "Utility room", o, "utility", "P_patient", win=REAR,
+           wall="paint_blue", floor="linoleum_brown")
+    P.room(L, "R24i", "Кладовая уборочного инвентаря", "Cleaning equipment storage", i, "cleaning_store",
+           "P_patient", wall="tile_wall", floor="tile_floor")
+    P.door(L, "R24", "C", cxo, w=0.8)
+    P.door(L, "R24i", "C", cxi, w=0.8)

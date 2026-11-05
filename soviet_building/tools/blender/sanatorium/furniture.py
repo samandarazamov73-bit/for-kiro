@@ -127,6 +127,18 @@ def sofa(w=1.8):
     return mb
 
 
+def _sofa(w=1.8, region="upholstery_green"):
+    mb = MB("sofa_" + region)
+    d = 0.8
+    bx(mb, -w / 2 + 0.1, w / 2 - 0.1, -d / 2, d / 2 - 0.15, 0.1, 0.44, {"*": region}, ("-x", "+x", "-y", "+z"))
+    bx(mb, -w / 2 + 0.1, w / 2 - 0.1, d / 2 - 0.2, d / 2, 0.1, 0.9, {"*": region}, ("-x", "+x", "-y", "+y", "+z"))
+    for x0, x1 in ((-w / 2, -w / 2 + 0.1), (w / 2 - 0.1, w / 2)):
+        bx(mb, x0, x1, -d / 2, d / 2, 0.0, 0.62, {"*": "wood_plain"}, ("-x", "+x", "-y", "+y", "+z"))
+    for x in (-w / 4, w / 4):     # seat cushions seam
+        bx(mb, x - 0.005, x + 0.005, -d / 2, d / 2 - 0.2, 0.44, 0.445, {"*": "wood_dark"}, ("+z",))
+    return mb
+
+
 def table(w=0.8, d=0.8, h=0.75, top="wood_plain"):
     mb = MB("table")
     bx(mb, -w / 2, w / 2, -d / 2, d / 2, h - 0.03, h, {"*": "wood_dark", "+z": top}, ("-x", "+x", "-y", "+y", "+z", "-z"))
@@ -142,7 +154,7 @@ def table_lamp():
     pts_t = [(-0.07, -0.07, 0.46), (0.07, -0.07, 0.46), (0.07, 0.07, 0.46), (-0.07, 0.07, 0.46)]
     for k in range(4):
         k2 = (k + 1) % 4
-        quad(mb, [pts_b[k], pts_b[k2], pts_t[k2], pts_t[k]], "lamp_shade")
+        mb.poly([pts_b[k], pts_b[k2], pts_t[k2], pts_t[k]], [(0, 0), (1, 0), (1, 1), (0, 1)], "emit_shade")
     return mb
 
 
@@ -508,9 +520,9 @@ def bin_():
 
 def toilet():
     mb = MB("toilet")
-    bx(mb, -0.19, 0.19, -0.3, 0.2, 0, 0.4, {"*": "porcelain"})
-    bx(mb, -0.22, 0.22, 0.05, 0.25, 1.75, 2.0, {"*": "porcelain"}, ("-x", "+x", "-y", "+z", "-z"))  # high cistern
-    quad(mb, [(-0.02, 0.2, 0.35), (0.02, 0.2, 0.35), (0.02, 0.2, 1.75), (-0.02, 0.2, 1.75)], "chrome", A, (0, -1, 0))
+    bx(mb, -0.18, 0.18, -0.3, 0.06, 0, 0.4, {"*": "porcelain"}, ("-x", "+x", "-y", "+z"))
+    bx(mb, -0.19, 0.19, -0.3, 0.02, 0.4, 0.43, {"*": "metal_white"}, ("-x", "+x", "-y", "+z"))      # seat
+    bx(mb, -0.2, 0.2, 0.06, 0.24, 0.0, 0.78, {"*": "porcelain"}, ("-x", "+x", "-y", "+z"))        # close-coupled cistern
     return mb
 
 
@@ -520,21 +532,42 @@ def urinal():
     return mb
 
 
-def cubicle(w=0.95, d=1.4, h=1.9):
-    """WC / shower cubicle: two side partitions and a door panel (front, half open)."""
+def cubicle(w=0.95, d=1.4, h=1.9, bars="left", door=True, curtain=False):
+    """WC / shower cubicle placed with its back (+y) against the wall: two side partitions, the door
+    leaf open inwards against the right partition, and grab bars inside by the toilet."""
     mb = MB("cubicle")
     for x in (-w / 2, w / 2):
         bx(mb, x - 0.02, x + 0.02, -d / 2, d / 2, 0.15, h, {"*": "partition"}, ("-x", "+x", "-y", "+z"))
+    if door:   # leaf parallel to the right partition, 1 cm clear of it
+        bx(mb, w / 2 - 0.055, w / 2 - 0.03, -d / 2, -d / 2 + 0.62, 0.17, h - 0.02, {"*": "partition"},
+           ("-x", "+x", "-y", "+y", "+z"))
+    if curtain:
+        mb.tube_region([(-w / 2, -d / 2 + 0.05, h), (w / 2, -d / 2 + 0.05, h)], 0.012, "chrome", 4)
+        for y, want in ((-d / 2 + 0.05, (0, -1, 0)), (-d / 2 + 0.06, (0, 1, 0))):
+            u0, v0, u1, v1 = FURN_UV["curtain_med"]
+            xa, xb = -w / 2 + 0.03, -w / 2 + 0.03 + w * 0.45
+            mb.poly_n([(xa, y, 0.25), (xb, y, 0.25), (xb, y, h - 0.03), (xa, y, h - 0.03)],
+                      [(u0, v0), (u1, v0), (u1, v1), (u0, v1)], A, want)
+    sides = {"left": (-1,), "right": (1,), "both": (-1, 1), "none": ()}[bars]
+    for sx in sides:
+        x = sx * (w / 2 - 0.02 - 0.07)
+        mb.tube_region([(sx * (w / 2 - 0.02), 0.05, 0.75), (x, 0.05, 0.75), (x, d / 2 - 0.12, 0.75),
+                        (sx * (w / 2 - 0.02), d / 2 - 0.12, 0.75)], 0.016, "chrome", 6)
     return mb
 
 
-def shower():
+def shower(s=0.9, curtain=True):
+    """Shower tray with riser and head on the back (+y) wall; optional curtain on the front."""
     mb = MB("shower")
-    bx(mb, -0.45, 0.45, -0.45, 0.45, 0, 0.08, {"*": "porcelain"}, ("-x", "+x", "-y", "+y", "+z"))
-    quad(mb, [(-0.015, 0.44, 0.8), (0.015, 0.44, 0.8), (0.015, 0.44, 2.05), (-0.015, 0.44, 2.05)], "chrome", A, (0, -1, 0))
-    bx(mb, -0.05, 0.05, 0.25, 0.44, 2.02, 2.06, {"*": "chrome"}, ("-x", "+x", "-y", "-z"))
-    quad(mb, [(-0.45, -0.45, 0.2), (0.45, -0.45, 0.2), (0.45, -0.45, 2.0), (-0.45, -0.45, 2.0)], "tulle",
-         "atlas_decal_blend")
+    h = s / 2
+    bx(mb, -h, h, -h, h, 0, 0.08, {"*": "porcelain"}, ("-x", "+x", "-y", "+y", "+z"))
+    quad(mb, [(-0.015, h - 0.01, 0.8), (0.015, h - 0.01, 0.8), (0.015, h - 0.01, 2.05), (-0.015, h - 0.01, 2.05)], "chrome",
+         A, (0, -1, 0))
+    bx(mb, -0.05, 0.05, h - 0.2, h - 0.01, 2.02, 2.06, {"*": "chrome"}, ("-x", "+x", "-y", "-z"))
+    if curtain:
+        mb.tube_region([(-h, -h, 2.0), (h, -h, 2.0)], 0.01, "chrome", 4)
+        quad(mb, [(-h, -h, 0.2), (-h + s * 0.55, -h, 0.2), (-h + s * 0.55, -h, 1.98), (-h, -h, 1.98)], "tulle",
+             "atlas_decal_blend")
     return mb
 
 
@@ -569,10 +602,12 @@ def projector():
 def ladder(h):
     mb = MB("ladder")
     for x in (-0.22, 0.22):
-        mb.tube_region([(x, 0, 0), (x, 0, h)], 0.018, "metal_grey", 4)
+        mb.tube_region([(x, -0.12, 0), (x, -0.12, h)], 0.018, "metal_grey", 4)
+        for z in (0.4, h - 0.3):
+            mb.tube_region([(x, 0, z), (x, -0.12, z)], 0.012, "metal_grey", 4)
     z = 0.3
     while z < h:
-        mb.tube_region([(-0.22, 0, z), (0.22, 0, z)], 0.012, "metal_grey", 4)
+        mb.tube_region([(-0.22, -0.12, z), (0.22, -0.12, z)], 0.012, "metal_grey", 4)
         z += 0.3
     return mb
 
@@ -584,7 +619,7 @@ def hatch():
 
 
 def radio():
-    return wall_box("vent_unit", 0.18, 0.12, 0.08, "wood_dark")
+    return wall_box("radio_front", 0.22, 0.18, 0.08, "wood_dark")
 
 
 def mirror_frame():
@@ -698,3 +733,507 @@ for _k, (_r, _w, _h) in {
     "stain_wall": ("stain_wall", 1.0, 1.0), "vent_grille": ("vent_grille", 0.25, 0.25),
 }.items():
     MODS[_k] = M((lambda r=_r, w=_w, h=_h: wall_quad(r, w, h)), _w, 0.01)
+
+
+# =============================================================================== v2 modules
+# Cozy guest rooms, spa department, games, luggage, phyto-bar. Same conventions as above;
+# wall-mounted modules (WALL set at the end) have their origin on the wall plane, bottom edge.
+
+def bed_made(spread="bedspread_a", w=0.9, d=2.0):
+    """Made bed: wooden frame, mattress in a white sheet, bedspread draped over the sides and folded
+    back at the head, one plump pillow."""
+    mb = MB("bed_made")
+    bx(mb, -w / 2, w / 2, -d / 2, d / 2, 0.12, 0.36, {"*": "wood_plain"}, ("-x", "+x", "-y", "+y"))
+    bx(mb, -w / 2 + 0.02, w / 2 - 0.02, -d / 2 + 0.03, d / 2 - 0.05, 0.36, 0.53, {"*": "linen_white"},
+       ("-x", "+x", "-y", "+y", "+z"))
+    y1 = d / 2 - 0.62                      # spread ends below the pillow, sheet folded over it
+    bx(mb, -w / 2 - 0.015, w / 2 + 0.015, -d / 2 + 0.01, y1, 0.30, 0.565, {"*": spread},
+       ("-x", "+x", "-y", "+y", "+z"))
+    bx(mb, -w / 2 + 0.005, w / 2 - 0.005, y1, y1 + 0.14, 0.53, 0.55, {"*": "linen_white"}, ("+y", "+z"))
+    bx(mb, -0.33, 0.33, d / 2 - 0.47, d / 2 - 0.08, 0.53, 0.68, {"*": "pillow"}, ("-x", "+x", "-y", "+z"))
+    bx(mb, -w / 2 - 0.02, w / 2 + 0.02, d / 2 - 0.04, d / 2, 0.0, 0.98, {"*": "wood_plain"},
+       ("-x", "+x", "-y", "+y", "+z"))
+    bx(mb, -w / 2 - 0.02, w / 2 + 0.02, -d / 2, -d / 2 + 0.04, 0.0, 0.62, {"*": "wood_plain"},
+       ("-x", "+x", "-y", "+y", "+z"))
+    return mb
+
+
+def bed_hospital_made():
+    """Height-adjustable care bed with a made bedspread (assisted rooms)."""
+    mb = MB("bed_hosp")
+    w, d = 0.95, 2.05
+    bx(mb, -w / 2, w / 2, -d / 2, d / 2, 0.45, 0.52, {"*": "metal_white"}, ("-x", "+x", "-y", "+y", "-z"))
+    bx(mb, -w / 2 + 0.03, w / 2 - 0.03, -d / 2 + 0.05, d / 2 - 0.05, 0.52, 0.66, {"*": "linen_white"},
+       ("-x", "+x", "-y", "+y", "+z"))
+    y1 = d / 2 - 0.62
+    bx(mb, -w / 2 + 0.01, w / 2 - 0.01, -d / 2 + 0.04, y1, 0.47, 0.675, {"*": "bedspread_b"},
+       ("-x", "+x", "-y", "+y", "+z"))
+    bx(mb, -0.33, 0.33, d / 2 - 0.47, d / 2 - 0.1, 0.66, 0.79, {"*": "pillow"}, ("-x", "+x", "-y", "+z"))
+    for y, h in ((d / 2 - 0.02, 1.05), (-d / 2 + 0.02, 0.85)):
+        quad(mb, [(-w / 2, y, 0.0), (w / 2, y, 0.0), (w / 2, y, h), (-w / 2, y, h)], "bed_head_tube", DEC)
+    for x in (-w / 2 + 0.03, w / 2 - 0.03):
+        quad(mb, [(x, -d / 2, 0), (x, d / 2, 0), (x, d / 2, 0.47), (x, -d / 2, 0.47)], "chair_legs_tube", DEC)
+    for sx in (-1, 1):      # side rail on the upper half (safety), down on the access side in the texture
+        mb.tube_region([(sx * (w / 2 + 0.01), 0.1, 0.8), (sx * (w / 2 + 0.01), d / 2 - 0.15, 0.8)], 0.012, "chrome", 4)
+    return mb
+
+
+def recliner(region="upholstery_beige"):
+    """Reclining relaxation chair (salt room / inhalatorium): seat, inclined back and leg rest."""
+    mb = MB("recliner")
+    w = 0.66
+    bx(mb, -w / 2, w / 2, -0.25, 0.3, 0.32, 0.46, {"*": region}, ("-x", "+x", "-y", "+y", "+z"))
+    u0, v0, u1, v1 = FURN_UV[region]
+    uv = [(u0, v0), (u1, v0), (u1, v1), (u0, v1)]
+    back = [(-w / 2, 0.3, 0.42), (w / 2, 0.3, 0.42), (w / 2, 0.68, 1.02), (-w / 2, 0.68, 1.02)]
+    rest = [(-w / 2, -0.72, 0.30), (w / 2, -0.72, 0.30), (w / 2, -0.25, 0.44), (-w / 2, -0.25, 0.44)]
+    for pts in (back, rest):
+        mb.poly_n(pts, uv, A, (0, -0.4, 1))
+        off = [(x, y + (0.06 if pts is back else 0), z - 0.08) for x, y, z in pts]
+        mb.poly_n(off, uv, A, (0, 0.4, -1))
+        for x in (-w / 2, w / 2):
+            q = [p for p in pts if abs(p[0] - x) < 1e-6]
+            r = [p for p in off if abs(p[0] - x) < 1e-6]
+            mb.poly_n([q[0], q[1], r[1], r[0]], uv, A, (x, 0, 0))
+    for x0, x1 in ((-w / 2 - 0.07, -w / 2), (w / 2, w / 2 + 0.07)):
+        bx(mb, x0, x1, -0.25, 0.42, 0.0, 0.58, {"*": "wood_light"}, ("-x", "+x", "-y", "+y", "+z"))
+    return mb
+
+
+def massage_table():
+    mb = MB("massage_table")
+    w, d = 0.65, 1.9
+    bx(mb, -w / 2, w / 2, -d / 2, d / 2, 0.66, 0.76, {"*": "leatherette_cream"}, ("-x", "+x", "-y", "+y", "+z"))
+    bx(mb, -0.28, 0.28, -d / 2 + 0.2, -d / 2 + 0.95, 0.761, 0.765, {"*": "towel"}, ("+z", "-x", "+x"))
+    cyl_r(mb, 0, d / 2 - 0.2, 0.76, 0.86, 0.1, "leatherette_cream", sides=6)
+    legs_alpha(mb, w, d - 0.2, 0.66, "chair_legs_tube")
+    return mb
+
+
+def stool():
+    mb = MB("stool")
+    cyl_r(mb, 0, 0, 0.5, 0.56, 0.18, "upholstery_brown", sides=8)
+    for a in (0.0, math.pi / 2):
+        c, s = math.cos(a) * 0.17, math.sin(a) * 0.17
+        quad(mb, [(-c, -s, 0), (c, s, 0), (c, s, 0.5), (-c, -s, 0.5)], "chair_legs_tube", DEC)
+    return mb
+
+
+def physio_device():
+    mb = MB("physio_device")
+    bx(mb, -0.25, 0.25, -0.2, 0.2, 0.18, 0.95, {"*": "metal_white", "-y": "physio_panel"})
+    legs_alpha(mb, 0.46, 0.36, 0.18, "chair_legs_tube")
+    mb.tube_region([(0.15, 0.1, 0.95), (0.15, 0.1, 1.35), (0.15, -0.35, 1.45)], 0.015, "metal_grey", 4)
+    cyl_r(mb, 0.15, -0.38, 1.33, 1.43, 0.09, "metal_white", sides=6)
+    return mb
+
+
+def curtain_rail(L=2.4, h=2.05, ceil=3.0):
+    """Ceiling-hung medical curtain on a straight rail (cubicle divider), double-sided fabric."""
+    mb = MB("curtain_rail")
+    mb.tube_region([(-L / 2, 0, h + 0.03), (L / 2, 0, h + 0.03)], 0.012, "chrome", 4)
+    for x in (-L / 2 + 0.1, L / 2 - 0.1):
+        mb.tube_region([(x, 0, h + 0.03), (x, 0, ceil)], 0.008, "chrome", 4)
+    u0, v0, u1, v1 = FURN_UV["curtain_med"]
+    for y, want in ((-0.006, (0, -1, 0)), (0.006, (0, 1, 0))):
+        mb.poly_n([(-L / 2, y, 0.3), (L / 2, y, 0.3), (L / 2, y, h), (-L / 2, y, h)],
+                  [(u0, v0), (u1, v0), (u1, v1), (u0, v1)], A, want)
+    return mb
+
+
+def hydro_bath():
+    """Therapeutic (whirlpool) bath with an enamel basin and a control panel at the head end."""
+    mb = MB("hydro_bath")
+    w, h, t = 0.85, 0.65, 0.07
+    ya, yb = -1.0, 0.75                     # tub; the control panel fills y 0.75..1.0 (footprint 0.85 x 2.0)
+    bx(mb, -w / 2, w / 2, ya, yb, 0, h, {"*": "enamel_pot"}, ("-x", "+x", "-y", "+y"))
+    for (x0, x1, y0, y1) in ((-w / 2, w / 2, ya, ya + t), (-w / 2, w / 2, yb - t, yb),
+                             (-w / 2, -w / 2 + t, ya + t, yb - t), (w / 2 - t, w / 2, ya + t, yb - t)):
+        bx(mb, x0, x1, y0, y1, h - 0.02, h, {"*": "porcelain"}, ("+z",))
+    x0, x1, y0, y1 = -w / 2 + t, w / 2 - t, ya + t, yb - t
+    bx(mb, x0, x1, y0, y1, 0.12, h - 0.02, {"*": "porcelain"}, ("-x", "+x", "-y", "+y"))   # inner walls (flip below)
+    k = 4
+    for i in range(len(mb.f) - k, len(mb.f)):
+        mb.f[i] = tuple(reversed(mb.f[i]))
+    bx(mb, x0, x1, y0, y1, 0.0, 0.12, {"*": "porcelain"}, ("+z",))
+    bx(mb, -0.3, 0.3, yb, 1.0, 0.0, 0.95, {"*": "metal_white", "-y": "hydro_panel"}, ("-x", "+x", "-y", "+y", "+z"))
+    return mb
+
+
+def inhaler():
+    """Table-top compressor inhaler with a hose and mouthpiece."""
+    mb = MB("inhaler")
+    bx(mb, -0.13, 0.13, -0.1, 0.1, 0, 0.16, {"*": "metal_white", "-y": "physio_panel"}, ("-x", "+x", "-y", "+y", "+z"))
+    mb.tube_region([(0.08, -0.05, 0.16), (0.1, -0.15, 0.3), (0.05, -0.2, 0.34)], 0.01, "rubber_black", 4)
+    return mb
+
+
+def charcot_console():
+    mb = MB("charcot_console")
+    bx(mb, -0.5, 0.5, -0.25, 0.25, 0, 1.15, {"*": "metal_white", "-y": "shower_console"})
+    for x in (-0.3, 0.3):
+        mb.tube_region([(x, -0.25, 0.9), (x, -0.45, 0.85), (x * 1.4, -0.6, 0.15)], 0.018, "rubber_black", 4)
+    return mb
+
+
+def bar_counter(L=3.0):
+    mb = MB("bar_counter")
+    bx(mb, -L / 2, L / 2, -0.28, 0.28, 0, 1.02, {"*": "wood_dark", "-y": "bar_front"}, ("-x", "+x", "-y", "+y"))
+    bx(mb, -L / 2 - 0.04, L / 2 + 0.04, -0.36, 0.32, 1.02, 1.07, {"*": "wood_dark", "+z": "wood_plain"})
+    return mb
+
+
+def buvette():
+    """Mineral water pump-room stand: tiled panel with three taps over a stone basin."""
+    mb = MB("buvette")
+    bx(mb, -0.65, 0.65, -0.12, 0.12, 0, 1.75, {"*": "porcelain", "-y": "buvette_front"}, ("-x", "+x", "-y", "+z"))
+    bx(mb, -0.6, 0.6, -0.42, -0.12, 0.72, 0.86, {"*": "concrete", "+z": "steel"})
+    for x in (-0.35, 0.0, 0.35):
+        mb.tube_region([(x, -0.12, 1.12), (x, -0.3, 1.12), (x, -0.3, 1.04)], 0.014, "chrome", 5)
+    return mb
+
+
+def samovar():
+    mb = MB("samovar")
+    cyl_r(mb, 0, 0, 0, 0.06, 0.1, "brass", sides=8)
+    cyl_r(mb, 0, 0, 0.06, 0.4, 0.15, "brass", sides=8)
+    cyl_r(mb, 0, 0, 0.4, 0.46, 0.06, "black_plastic", sides=6)
+    cyl_r(mb, 0, 0, 0.46, 0.56, 0.07, "enamel_pot", sides=6)       # teapot on top
+    mb.tube_region([(0, -0.15, 0.15), (0, -0.22, 0.13)], 0.012, "brass", 4, cap1=True)
+    return mb
+
+
+def table_round(top="tablecloth", r=0.38, h=0.74):
+    mb = MB("table_round")
+    cyl_r(mb, 0, 0, h - 0.03, h, r, top, sides=10)
+    mb.tube_region([(0, 0, 0.02), (0, 0, h - 0.03)], 0.03, "wood_dark", 5)
+    cyl_r(mb, 0, 0, 0, 0.03, 0.24, "wood_dark", sides=8)
+    return mb
+
+
+def table_cloth(w=1.2, d=0.8, h=0.75):
+    """Dining table with a white tablecloth hanging 12 cm over the edges."""
+    mb = MB("table_cloth")
+    bx(mb, -w / 2 - 0.02, w / 2 + 0.02, -d / 2 - 0.02, d / 2 + 0.02, h - 0.14, h, {"*": "tablecloth"},
+       ("-x", "+x", "-y", "+y", "+z"))
+    legs_alpha(mb, w, d, h - 0.14, "chair_legs_wood")
+    return mb
+
+
+def vase():
+    mb = MB("vase")
+    cyl_r(mb, 0, 0, 0, 0.16, 0.05, "porcelain", sides=6)
+    for a in (0.0, math.pi / 2):
+        c, s = math.cos(a) * 0.13, math.sin(a) * 0.13
+        quad(mb, [(-c, -s, 0.1), (c, s, 0.1), (c, s, 0.38), (-c, -s, 0.38)], "plant_4", DEC)
+    return mb
+
+
+def tv_small():
+    mb = MB("tv_small")
+    bx(mb, -0.24, 0.24, -0.2, 0.2, 0.0, 0.4, {"*": "wood_dark", "-y": "tv_front"}, ("-x", "+x", "-y", "+y", "+z"))
+    return mb
+
+
+def tv_cabinet():
+    mb = MB("tv_cabinet")
+    bx(mb, -0.45, 0.45, -0.22, 0.22, 0.0, 0.55, {"*": "wood_plain", "-y": "drawer_front"})
+    return mb
+
+
+def game_board(region, w=0.42, d=0.42):
+    mb = MB("game_" + region)
+    bx(mb, -w / 2, w / 2, -d / 2, d / 2, 0, 0.025, {"*": "wood_dark", "+z": region}, ("-x", "+x", "-y", "+y", "+z"))
+    return mb
+
+
+def game_chess():
+    mb = game_board("chessboard")
+    s = 0.38 / 8
+    k = 0
+    for row, reg in ((0, "porcelain"), (1, "porcelain"), (6, "black_plastic"), (7, "black_plastic")):
+        for col_ in range(0, 8, 2 if row in (1, 6) else 1):
+            if row in (0, 7) and col_ % 2:
+                continue
+            x, y = -0.19 + (col_ + 0.5) * s, -0.19 + (row + 0.5) * s
+            h = 0.035 if row in (1, 6) else 0.06 + 0.01 * (k % 3)
+            mb.box(x - 0.011, x + 0.011, y - 0.011, y + 0.011, 0.025, 0.025 + h, A,
+                   faces=("-x", "+x", "-y", "+y", "+z"), uv="region", regions={"*": reg})
+            k += 1
+    return mb
+
+
+def game_checkers():
+    mb = game_board("checkers_board")
+    return mb
+
+
+def game_dominoes():
+    mb = MB("game_dominoes")
+    for i, (x, y, a) in enumerate(((-0.12, 0.0, 0), (-0.07, 0.0, 0), (-0.02, 0.0, 0), (0.03, 0.0, 0),
+                                   (0.03, 0.06, 1), (0.03, 0.12, 1), (0.1, -0.12, 0), (0.15, -0.12, 0))):
+        hw, hd = (0.024, 0.012) if a == 0 else (0.012, 0.024)
+        mb.box(x - hd, x + hd, y - hw, y + hw, 0, 0.008, A, faces=("-x", "+x", "-y", "+y", "+z"), uv="region",
+               regions={"*": "porcelain", "+z": "dominoes"})
+    return mb
+
+
+def game_backgammon():
+    return game_board("backgammon", 0.5, 0.32)
+
+
+def billiard():
+    """Russian billiards table (2.6 x 1.45 m): carved legs, wooden rails, green cloth with balls."""
+    mb = MB("billiard")
+    w, d, h = 1.45, 2.6, 0.8
+    bx(mb, -w / 2, w / 2, -d / 2, d / 2, h - 0.25, h - 0.04, {"*": "wood_dark"}, ("-x", "+x", "-y", "+y", "-z"))
+    u0, v0, u1, v1 = FURN_UV["billiard_cloth"]
+    mb.poly_n([(-w / 2 + 0.1, -d / 2 + 0.1, h - 0.04), (w / 2 - 0.1, -d / 2 + 0.1, h - 0.04),
+               (w / 2 - 0.1, d / 2 - 0.1, h - 0.04), (-w / 2 + 0.1, d / 2 - 0.1, h - 0.04)],
+              [(u0, v1), (u0, v0), (u1, v0), (u1, v1)], A, (0, 0, 1))
+    for (x0, x1, y0, y1) in ((-w / 2, w / 2, -d / 2, -d / 2 + 0.1), (-w / 2, w / 2, d / 2 - 0.1, d / 2),
+                             (-w / 2, -w / 2 + 0.1, -d / 2 + 0.1, d / 2 - 0.1), (w / 2 - 0.1, w / 2, -d / 2 + 0.1, d / 2 - 0.1)):
+        bx(mb, x0, x1, y0, y1, h - 0.04, h, {"*": "wood_dark", "+z": "wood_plain"}, ("-x", "+x", "-y", "+y", "+z"))
+    for x in (-w / 2 + 0.12, w / 2 - 0.12):
+        for y in (-d / 2 + 0.15, 0.0, d / 2 - 0.15):
+            bx(mb, x - 0.07, x + 0.07, y - 0.07, y + 0.07, 0, h - 0.25, {"*": "wood_dark"}, ("-x", "+x", "-y", "+y"))
+    return mb
+
+
+def cue_rack():
+    mb = MB("cue_rack")
+    bx(mb, -0.35, 0.35, -0.04, 0, 0.9, 1.0, {"*": "wood_dark"}, ("-x", "+x", "-y", "+z", "-z"))
+    bx(mb, -0.35, 0.35, -0.06, 0, 0.1, 0.16, {"*": "wood_dark"}, ("-x", "+x", "-y", "+z"))
+    for i in range(4):
+        x = -0.24 + i * 0.16
+        mb.tube_region([(x, -0.05, 0.14), (x, -0.05, 1.5)], 0.012, "wood_light", 4, cap1=True)
+    return mb
+
+
+def suitcase(region="suitcase_a", w=0.62, d=0.2, h=0.44):
+    mb = MB("suitcase_" + region)
+    bx(mb, -w / 2, w / 2, -d / 2, d / 2, 0, h, {"*": "upholstery_brown" if region == "suitcase_a" else "upholstery_green",
+                                               "-y": region, "+y": region})
+    mb.tube_region([(-0.1, 0, h), (-0.08, 0, h + 0.05), (0.08, 0, h + 0.05), (0.1, 0, h)], 0.012, "black_plastic", 4)
+    return mb
+
+
+def travel_bag():
+    mb = MB("travel_bag")
+    bx(mb, -0.26, 0.26, -0.15, 0.15, 0, 0.3, {"*": "travel_bag"})
+    mb.tube_region([(-0.12, 0, 0.3), (-0.08, 0, 0.42), (0.08, 0, 0.42), (0.12, 0, 0.3)], 0.012, "black_plastic", 4)
+    return mb
+
+
+def ex_bike():
+    """Exercise bicycle (veloergometer)."""
+    mb = MB("ex_bike")
+    bx(mb, -0.25, 0.25, -0.45, 0.45, 0, 0.06, {"*": "metal_grey"})
+    quad(mb, [(0, -0.42, 0.06), (0, 0.0, 0.06), (0, 0.0, 0.5), (0, -0.42, 0.5)], "wheel", DEC)
+    mb.tube_region([(0, 0.3, 0.06), (0, 0.15, 0.85)], 0.025, "metal_white", 5)
+    bx(mb, -0.12, 0.12, 0.05, 0.3, 0.85, 0.92, {"*": "upholstery_brown"})
+    mb.tube_region([(0, -0.25, 0.06), (0, -0.35, 1.05)], 0.025, "metal_white", 5)
+    mb.tube_region([(-0.25, -0.35, 1.05), (0.25, -0.35, 1.05)], 0.018, "rubber_black", 4)
+    bx(mb, -0.08, 0.08, -0.42, -0.34, 0.95, 1.05, {"*": "black_plastic", "+y": "floor_indicator"})
+    return mb
+
+
+def wall_bars(n=12, h=2.6):
+    mb = MB("wall_bars")
+    for x in (-0.45, 0.45):
+        bx(mb, x - 0.035, x + 0.035, -0.14, -0.02, 0, h, {"*": "wood_light"}, ("-x", "+x", "-y", "+z"))
+    for i in range(n):
+        z = 0.15 + i * (h - 0.3) / (n - 1)
+        mb.tube_region([(-0.41, -0.08, z), (0.41, -0.08, z)], 0.016, "wood_light", 5)
+    return mb
+
+
+def gym_bench():
+    mb = MB("gym_bench")
+    bx(mb, -1.0, 1.0, -0.15, 0.15, 0.3, 0.35, {"*": "wood_light"}, ("-x", "+x", "-y", "+y", "+z", "-z"))
+    for x in (-0.85, 0.85):
+        bx(mb, x - 0.03, x + 0.03, -0.14, 0.14, 0, 0.3, {"*": "wood_light"}, ("-x", "+x", "-y", "+y"))
+    return mb
+
+
+def floor_lamp():
+    mb = MB("floor_lamp")
+    cyl_r(mb, 0, 0, 0, 0.03, 0.16, "black_plastic", sides=8)
+    mb.tube_region([(0, 0, 0.03), (0, 0, 1.4)], 0.012, "brass", 4)
+    n = 8
+    rb, rt, zb, zt = 0.24, 0.16, 1.32, 1.6
+    for k in range(n):
+        a0, a1 = 2 * math.pi * k / n, 2 * math.pi * (k + 1) / n
+        p = [(rb * math.cos(a0), rb * math.sin(a0), zb), (rb * math.cos(a1), rb * math.sin(a1), zb),
+             (rt * math.cos(a1), rt * math.sin(a1), zt), (rt * math.cos(a0), rt * math.sin(a0), zt)]
+        mb.poly(p, [(0, 0), (1, 0), (1, 1), (0, 1)], "emit_shade")
+    return mb
+
+
+def sconce():
+    """Wall lamp with a fabric shade (corridors, lounges)."""
+    mb = MB("sconce")
+    bx(mb, -0.05, 0.05, -0.03, 0, 0.0, 0.12, {"*": "brass"}, ("-x", "+x", "-y", "+z", "-z"))
+    mb.tube_region([(0, -0.02, 0.06), (0, -0.14, 0.12)], 0.008, "brass", 4)
+    n = 6
+    for k in range(n):
+        a0, a1 = 2 * math.pi * k / n, 2 * math.pi * (k + 1) / n
+        cx, cy = 0.0, -0.17
+        p = [(cx + 0.11 * math.cos(a0), cy + 0.11 * math.sin(a0), 0.08), (cx + 0.11 * math.cos(a1), cy + 0.11 * math.sin(a1), 0.08),
+             (cx + 0.07 * math.cos(a1), cy + 0.07 * math.sin(a1), 0.26), (cx + 0.07 * math.cos(a0), cy + 0.07 * math.sin(a0), 0.26)]
+        mb.poly(p, [(0, 0), (1, 0), (1, 1), (0, 1)], "emit_shade")
+    return mb
+
+
+def towel_rail(w=0.6):
+    mb = MB("towel_rail")
+    mb.tube_region([(-w / 2, 0, 0.0), (-w / 2, -0.08, 0.0), (w / 2, -0.08, 0.0), (w / 2, 0, 0.0)], 0.012, "chrome", 5)
+    for y, want in ((-0.075, (0, -1, 0)), (-0.085, (0, 1, 0))):
+        u0, v0, u1, v1 = FURN_UV["towel"]
+        mb.poly_n([(-w / 2 + 0.08, y, -0.45), (w / 2 - 0.08, y, -0.45), (w / 2 - 0.08, y, 0.0), (-w / 2 + 0.08, y, 0.0)],
+                  [(u0, v0), (u1, v0), (u1, v1), (u0, v1)], A, want)
+    return mb
+
+
+def shower_seat():
+    mb = MB("shower_seat")
+    bx(mb, -0.22, 0.22, -0.42, 0, 0.45, 0.49, {"*": "wood_light"}, ("-x", "+x", "-y", "+z", "-z"))
+    for x in (-0.2, 0.2):
+        mb.tube_region([(x, 0, 0.2), (x, -0.38, 0.45)], 0.01, "chrome", 4)
+    return mb
+
+
+def grab_bar_v(h=0.6):
+    mb = MB("grab_bar_v")
+    mb.tube_region([(0, 0, 0), (0, -0.07, 0), (0, -0.07, h), (0, 0, h)], 0.017, "chrome", 6)
+    return mb
+
+
+def grab_bar_l():
+    """L-shaped bar beside a toilet or sink: horizontal 0.5 m at the bottom, vertical 0.6 m."""
+    mb = MB("grab_bar_l")
+    mb.tube_region([(-0.25, 0, 0), (-0.25, -0.07, 0), (0.25, -0.07, 0), (0.25, -0.07, 0.6), (0.25, 0, 0.6)],
+                   0.017, "chrome", 6)
+    return mb
+
+
+def grab_fold():
+    """Fold-down support arm beside an accessible toilet (projects 0.7 m from the wall)."""
+    mb = MB("grab_fold")
+    bx(mb, -0.06, 0.06, -0.03, 0, -0.08, 0.08, {"*": "chrome"}, ("-x", "+x", "-y", "+z", "-z"))
+    mb.tube_region([(-0.04, -0.03, 0.0), (-0.04, -0.7, 0.0), (0.04, -0.7, 0.0), (0.04, -0.03, 0.0)], 0.016, "chrome", 6)
+    return mb
+
+
+def coat_hooks(w=0.8):
+    mb = MB("coat_hooks")
+    bx(mb, -w / 2, w / 2, -0.025, 0, 0, 0.1, {"*": "wood_dark"}, ("-x", "+x", "-y", "+z", "-z"))
+    for i in range(4):
+        x = -w / 2 + (i + 0.5) * w / 4
+        mb.tube_region([(x, -0.02, 0.05), (x, -0.08, 0.07), (x, -0.09, 0.11)], 0.006, "brass", 4)
+    return mb
+
+
+def carafe():
+    mb = MB("carafe")
+    cyl_r(mb, 0, 0, 0, 0.2, 0.05, "chrome", sides=6)
+    cyl_r(mb, 0.09, 0, 0, 0.09, 0.03, "chrome", sides=6)
+    return mb
+
+
+def palm():
+    mb = MB("palm")
+    cyl_r(mb, 0, 0, 0, 0.42, 0.2, "wood_dark", sides=8)
+    for a in (0.3, 0.3 + math.pi / 2):
+        c, s = math.cos(a) * 0.55, math.sin(a) * 0.55
+        quad(mb, [(-c, -s, 0.3), (c, s, 0.3), (c, s, 2.0), (-c, -s, 2.0)], "plant_3", DEC)
+    return mb
+
+
+def plant_stand():
+    """Wooden flower stand with a flowering geranium."""
+    mb = MB("plant_stand")
+    bx(mb, -0.17, 0.17, -0.17, 0.17, 0.6, 0.63, {"*": "wood_dark"}, ("-x", "+x", "-y", "+y", "+z", "-z"))
+    legs_alpha(mb, 0.32, 0.32, 0.6, "chair_legs_wood")
+    cyl_r(mb, 0, 0, 0.63, 0.8, 0.11, "red_paint", sides=6)
+    for a in (0.0, math.pi / 2):
+        c, s = math.cos(a) * 0.26, math.sin(a) * 0.26
+        quad(mb, [(-c, -s, 0.72), (c, s, 0.72), (c, s, 1.2), (-c, -s, 1.2)], "plant_4", DEC)
+    return mb
+
+
+MODS.update({
+    "bed_a": M(lambda: bed_made("bedspread_a"), 0.94, 2.0), "bed_b": M(lambda: bed_made("bedspread_b"), 0.94, 2.0),
+    "bed_c": M(lambda: bed_made("blanket"), 0.94, 2.0), "bed_hosp": M(bed_hospital_made, 0.97, 2.05),
+    "armchair_red": M(lambda: armchair("upholstery_red"), 0.7, 0.75),
+    "armchair_beige": M(lambda: armchair("upholstery_beige"), 0.7, 0.75),
+    "sofa_brown": M(lambda: _sofa(1.8, "upholstery_brown"), 1.8, 0.8),
+    "sofa_beige": M(lambda: _sofa(1.8, "upholstery_beige"), 1.8, 0.8),
+    "sofa_red": M(lambda: _sofa(1.8, "upholstery_red"), 1.8, 0.8),
+    "recliner": M(recliner, 0.8, 1.45), "massage_table": M(massage_table, 0.65, 1.9), "stool": M(stool, 0.36, 0.36),
+    "physio_device": M(physio_device, 0.5, 0.45), "curtain_rail": M(curtain_rail, 2.4, 0.05),
+    "curtain_rail_s": M(lambda: curtain_rail(1.7), 1.7, 0.05),
+    "hydro_bath": M(hydro_bath, 0.85, 2.0), "charcot_console": M(charcot_console, 1.0, 0.5),
+    "bar_counter": M(bar_counter, 3.0, 0.68), "buvette": M(buvette, 1.3, 0.42), "samovar": M(samovar, 0.3, 0.3),
+    "tea_shelf": M(lambda: rack("tea_jars", 1.2, 0.35, 1.9), 1.2, 0.35),
+    "table_round": M(table_round, 0.76, 0.76), "table_cloth": M(table_cloth, 1.24, 0.84),
+    "table_cloth_sq": M(lambda: table_cloth(0.8, 0.8), 0.84, 0.84),
+    "vase": M(vase, 0.26, 0.26), "inhaler": M(inhaler, 0.26, 0.2), "tv_small": M(tv_small, 0.48, 0.4), "tv_cabinet": M(tv_cabinet, 0.9, 0.44),
+    "game_chess": M(game_chess, 0.42, 0.42), "game_checkers": M(game_checkers, 0.42, 0.42),
+    "game_dominoes": M(game_dominoes, 0.3, 0.3), "game_backgammon": M(game_backgammon, 0.5, 0.32),
+    "billiard": M(billiard, 1.45, 2.6),
+    "suitcase_a": M(lambda: suitcase("suitcase_a"), 0.62, 0.2), "suitcase_b": M(lambda: suitcase("suitcase_b"), 0.62, 0.2),
+    "travel_bag": M(travel_bag, 0.52, 0.3), "luggage_rack": M(lambda: rack("luggage_shelf", 1.2, 0.5, 1.9), 1.2, 0.5),
+    "ex_bike": M(ex_bike, 0.5, 0.9), "gym_bench": M(gym_bench, 2.0, 0.3),
+    "gym_mat": M(lambda: floor_quad("gym_mat", 1.8, 0.6, A, z=0.006), 1.8, 0.6),
+    "rubber_mat": M(lambda: floor_quad("rubber_mat", 0.8, 1.8, A, z=0.005), 0.8, 1.8),
+    "bath_mat": M(lambda: floor_quad("bath_mat", 0.6, 0.45, A, z=0.005), 0.6, 0.45),
+    "rug_small": M(lambda: floor_quad("carpet_rug", 1.4, 0.9, A), 1.4, 0.9),
+    "rug_big": M(lambda: floor_quad("carpet_rug", 2.6, 1.8, A), 2.6, 1.8),
+    "floor_lamp": M(floor_lamp, 0.48, 0.48), "carafe": M(carafe, 0.2, 0.12),
+    "palm": M(palm, 0.6, 0.6), "plant_stand": M(plant_stand, 0.36, 0.36),
+    "cubicle": M(lambda: cubicle(0.95, 1.4, bars="left"), 0.99, 1.4),
+    "cubicle_r": M(lambda: cubicle(0.95, 1.4, bars="right"), 0.99, 1.4),
+    "cubicle_wide": M(lambda: cubicle(1.5, 1.6, bars="both"), 1.54, 1.6),
+    "shower_cubicle": M(lambda: cubicle(1.0, 1.2, bars="left", door=False, curtain=True), 1.04, 1.2),
+    "chair_soft": M(lambda: chair("tube"), 0.42, 0.45),
+    "seat_row2": M(lambda: seat_row(2), 1.04, 0.44),
+    "shower_s": M(lambda: shower(0.8), 0.8, 0.8), "shower_tray": M(lambda: shower(0.9, False), 0.9, 0.9),
+    "table_read": M(lambda: table(1.4, 0.8, 0.75, "upholstery_green"), 1.4, 0.8),
+    # wall-mounted
+    "call_button": M(lambda: wall_box("call_button", 0.08, 0.11, 0.025, "metal_white"), 0.08, 0.025),
+    "call_panel": M(lambda: wall_box("call_panel", 0.5, 0.25, 0.06, "metal_white"), 0.5, 0.06),
+    "cue_rack": M(cue_rack, 0.7, 0.06), "wall_bars": M(wall_bars, 0.97, 0.14),
+    "mirror_big": M(lambda: wall_quad("mirror", 1.8, 1.5, A), 1.8, 0.01),
+    "sconce": M(sconce, 0.24, 0.28), "towel_rail": M(towel_rail, 0.62, 0.1), "shower_seat": M(shower_seat, 0.44, 0.42),
+    "grab_bar_s": M(lambda: grab_bar(0.45), 0.45, 0.09), "grab_bar_v": M(grab_bar_v, 0.06, 0.09),
+    "grab_bar_l": M(grab_bar_l, 0.54, 0.09), "grab_fold": M(grab_fold, 0.12, 0.72),
+    "coat_hooks": M(coat_hooks, 0.8, 0.1),
+})
+for _k, (_r, _w, _h) in {
+    "poster_7": ("poster_7", 0.5, 0.75), "poster_8": ("poster_8", 0.5, 0.75), "poster_9": ("poster_9", 0.5, 0.75),
+    "poster_10": ("poster_10", 0.5, 0.75), "painting_3": ("painting_3", 1.2, 0.6),
+    "welcome_banner": ("welcome_banner", 2.4, 0.45), "menu_phyto": ("menu_phyto", 0.6, 0.45),
+    "buvette_sign": ("buvette_sign", 0.8, 0.3), "schedule_proc": ("schedule_proc", 0.6, 0.45),
+    "arrow_spa": ("arrow_spa", 0.5, 0.125), "papers_desk": ("papers_1", 0.4, 0.4),
+}.items():
+    MODS[_k] = M((lambda r=_r, w=_w, h=_h: wall_quad(r, w, h)), _w, 0.01)
+MODS["papers_desk"] = M(lambda: floor_quad("papers_1", 0.38, 0.38, DEC, z=0.002), 0.38, 0.38)
+for _k in ("stain", "dust", "papers_1", "papers_2", "soot", "stain_wall", "key_only"):
+    MODS.pop(_k, None)
+MODS["radio"] = M(radio, 0.22, 0.08)
+
+# wall-mounted modules: origin on the wall plane at the bottom edge, body towards local -Y
+WALL = {k for k in MODS if k.startswith(("poster_", "painting_", "arrow_"))} | {
+    "eye_chart", "anatomy", "notice_board", "wall_newspaper", "evac_plan", "wall_carpet", "calendar", "schedule",
+    "menu_board", "frame_photo", "exit_sign", "fire_sign", "no_smoking", "keep_out", "silence", "wc_m", "wc_f",
+    "wc_access", "electro_warning", "roof_hatch_sign", "socket", "light_switch", "vent_grille", "clock", "radio",
+    "hose_cabinet", "fuse_box", "elec_panel_wall", "mirror", "fire_ext", "grab_bar", "ladder",
+    "call_button", "call_panel", "cue_rack", "wall_bars", "mirror_big", "sconce", "towel_rail", "shower_seat",
+    "grab_bar_s", "grab_bar_v", "grab_bar_l", "grab_fold", "coat_hooks", "welcome_banner", "menu_phyto",
+    "buvette_sign", "schedule_proc",
+}
+# items that stand on other furniture (no floor footprint of their own)
+ON_TOP = {"table_lamp", "telephone", "typewriter", "paper_stack", "papers_desk", "microscope", "centrifuge",
+          "samovar", "vase", "tv_small", "game_chess", "game_checkers", "game_dominoes", "game_backgammon",
+          "carafe", "suitcase_a", "suitcase_b", "travel_bag", "inhaler"}

@@ -88,13 +88,19 @@ class Build:
         for i in range(4):
             c = bobj.collection(f"Interior_{names[i]}", self.cint)
             self.level_coll[i] = c
-            self.level_empty[i] = bobj.empty(names[i], c, self.int_empty, props={"level_z": LEVELS[i]})
+            # elevation is a height: Blender Z (Z-up .blend); glTF/FBX exports are Y-up, so it is Y there
+            self.level_empty[i] = bobj.empty(names[i], c, self.int_empty, props={
+                "floor": i + 1, "floor_elevation_m": round(LEVELS[i], 3),
+                "ceiling_elevation_m": round(LEVELS[i] + CEIL_H, 3),
+                "clear_height_m": CEIL_H, "elevation_axis": "vertical: Z in .blend, Y in GLB/FBX (Y-up)"})
         self.room_empty = {}
         for r in self.plan.rooms.values():
             e = bobj.empty(f"Room_{r.num or r.rid.split('.')[1]}_{r.en.split('(')[0].strip().replace(' ', '')}"[:60],
                            self.level_coll[r.level], self.level_empty[r.level],
                            props={"room_id": r.rid, "number": r.num, "name_ru": r.ru, "name_en": r.en,
-                                  "department": r.dept, "area_m2": round(r.area, 2), "kind": r.kind})
+                                  "department": r.dept, "area_m2": round(r.area, 2), "kind": r.kind,
+                                  "floor": r.level + 1, "floor_elevation_m": round(r.z0, 3),
+                                  "ceiling_elevation_m": round(r.z1, 3)})
             self.room_empty[r.rid] = e
 
     def coll_for(self, rid):
@@ -173,7 +179,7 @@ class Build:
         self.coll_for(shaft.rid).objects.link(lo)
         lo.parent = parent
         for lvl in range(4):
-            mb, dec = E.landing(lvl)
+            mb, dec = E.landing(lvl, open_=(lvl == 0))
             p = dict(E.props()); p["landing_level"] = lvl + 1
             self.add(mb, level=lvl, name=f"Lift_Landing_Floor{lvl + 1}", props=p, group="Elevator")
             self.add(dec, level=lvl, name=f"Lift_Signs_Floor{lvl + 1}", group="Signs")
@@ -211,10 +217,10 @@ class Build:
         from sanatorium.drawplan import draw_level
         pdir = os.path.join(self.root, "plans")
         os.makedirs(pdir, exist_ok=True)
-        titles = ["Floor 1 (ground, +1.20): reception, administration, medical, dining, service",
-                  "Floor 2 (+4.50): patient rooms, assisted-care rooms, club hall",
-                  "Floor 3 (+7.80): patient rooms, lounge, projection booth",
-                  "Floor 4 (+11.10): patient rooms, lounge, roof access"]
+        titles = ["Floor 1 (ground, +1.20): reception, phyto-bar, spa treatments, medical, dining, service",
+                  "Floor 2 (+4.50): guest rooms with bathrooms, assisted-care rooms, lounge, club hall",
+                  "Floor 3 (+7.80): guest rooms with bathrooms, lounge, doctors' room, projection booth",
+                  "Floor 4 (+11.10): guest rooms with bathrooms, lounge, library, roof access"]
         for lv in range(4):
             draw_level(self.lay, lv, os.path.join(pdir, f"plan_floor{lv + 1}.png"), title=titles[lv])
         win = {}
@@ -241,7 +247,7 @@ class Build:
         sel = [self.root_empty] + [o for o in self.cint.all_objects]
         for o in sel:
             o.select_set(True)
-        sun = bpy.data.objects.get("Sun_Overcast")
+        sun = bpy.data.objects.get("Sun_Day")
         bpy.ops.export_scene.gltf(filepath=os.path.join(exp, "SovietSanatorium_Interior.glb"), use_selection=True,
                                   **common)
         bpy.ops.object.select_all(action="DESELECT")

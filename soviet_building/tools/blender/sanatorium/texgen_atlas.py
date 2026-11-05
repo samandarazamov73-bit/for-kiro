@@ -1,6 +1,7 @@
 """Painted texture atlases: furniture/equipment (opaque), decals (RGBA) and door plates.
 
 All artwork is drawn procedurally with Pillow; text is Russian, as on the original signs."""
+import zlib
 import numpy as np
 from PIL import Image, ImageDraw, ImageFilter
 from .texcore import *
@@ -215,10 +216,7 @@ def p_hose_cabinet(t):
 def p_partition(t):
     noise_fill(t, "#b9b8a6")
     t.d.rectangle([4, 4, t.w - 4, t.h - 4], outline=c8("#8a8a7a"), width=3)
-    sc = scratches(t.h, t.w, 30, t.seed, (0.05, 0.2), 1)
-    t.img = Image.fromarray(to8(np.asarray(t.img) / 255.0 * (1 - 0.3 * sc[..., None])))
-    t.d = ImageDraw.Draw(t.img)
-    t.rough = 0.5
+    t.rough = 0.4
 
 
 def p_stage_curtain(t):
@@ -245,10 +243,10 @@ def p_cabin_panel(t):
     txt(t, (w // 2, 310), "СТОП", 11, c8("#fff"))
     t.d.ellipse([w // 2 - 18, 370 - 18, w // 2 + 18, 370 + 18], fill=c8("#d8b020"))
     txt(t, (w // 2, 370), "ВЫЗОВ", 9, c8("#222"))
-    t.d.ellipse([w // 2 - 16, 432 - 16, w // 2 + 16, 432 + 16], fill=c8("#b8b4a4"), outline=c8("#333"), width=2)
-    t.d.rectangle([w // 2 - 3, 422, w // 2 + 3, 442], fill=c8("#111"))
-    txt(t, (w // 2, 462), "КЛЮЧ", 12, c8("#e8e4d6"))
-    txt(t, (w // 2, 488), "500 кг", 11, c8("#d8d4c6"), "Regular")
+    t.d.ellipse([w // 2 - 16, 432 - 16, w // 2 + 16, 432 + 16], fill=c8("#2a2a2a"), outline=c8("#c0bcb0"), width=2)
+    txt(t, (w // 2, 432), "◀▶", 12, c8("#e8e4d6"))
+    txt(t, (w // 2, 462), "ДВЕРИ", 12, c8("#e8e4d6"))
+    txt(t, (w // 2, 488), "1000 кг", 11, c8("#d8d4c6"), "Regular")
     t.rough, t.metal = 0.45, 0.4
 
 
@@ -257,15 +255,13 @@ def p_landing_panel(t):
     w, h = t.w, t.h
     bevel_rect(t, (6, 6, w - 6, h - 6), c8("#83867c"))
     t.d.rectangle([16, 20, w - 16, 110], fill=c8("#e2dccb"))
-    txt(t, (w // 2, 44), "ЛИФТ", 17, c8("#9a1a12"))
-    txt(t, (w // 2, 68), "СЛУЖЕБНЫЙ", 11, c8("#9a1a12"))
-    txt(t, (w // 2, 92), "по ключу", 12, c8("#222"), "Regular")
-    t.d.ellipse([w // 2 - 22, 180 - 22, w // 2 + 22, 180 + 22], fill=c8("#2a2a2a"), outline=c8("#c0bcb0"), width=4)
-    t.d.ellipse([w // 2 - 9, 180 - 9, w // 2 + 9, 180 + 9], fill=c8("#7a1410"))
-    txt(t, (w // 2, 222), "ВЫЗОВ", 13, c8("#e8e4d6"))
-    t.d.ellipse([w // 2 - 24, 300 - 24, w // 2 + 24, 300 + 24], fill=c8("#b8b4a4"), outline=c8("#333"), width=3)
-    t.d.rectangle([w // 2 - 4, 286, w // 2 + 4, 314], fill=c8("#111"))
-    txt(t, (w // 2, 344), "ВКЛ  ВЫКЛ", 11, c8("#e8e4d6"))
+    txt(t, (w // 2, 50), "ЛИФТ", 19, c8("#2a3a5a"))
+    txt(t, (w // 2, 80), "пассажирский", 10, c8("#222"), "Regular")
+    t.d.ellipse([w // 2 - 24, 180 - 24, w // 2 + 24, 180 + 24], fill=c8("#2a2a2a"), outline=c8("#c0bcb0"), width=4)
+    t.d.ellipse([w // 2 - 10, 180 - 10, w // 2 + 10, 180 + 10], fill=c8("#e8a020"))
+    txt(t, (w // 2, 226), "ВЫЗОВ", 13, c8("#e8e4d6"))
+    t.d.ellipse([w // 2 - 8, 300 - 8, w // 2 + 8, 300 + 8], fill=c8("#3aa04a"))
+    txt(t, (w // 2, 324), "ЛИФТ ЗДЕСЬ", 9, c8("#e8e4d6"))
     t.d.ellipse([w // 2 - 7, 400 - 7, w // 2 + 7, 400 + 7], fill=c8("#4a1a14"))
     txt(t, (w // 2, 422), "ЗАНЯТО", 11, c8("#e8e4d6"))
     t.rough, t.metal = 0.45, 0.4
@@ -315,9 +311,7 @@ def p_radiator(t):
     sec = (np.sin(x * 2 * np.pi * 16) * 0.5 + 0.5)
     hh = np.repeat(sec[None, :], h, 0)
     yy = np.repeat((np.arange(h) / h)[:, None], w, 1)
-    rgb = lerp(col("#8f8a78"), col("#d6d0bc"), hh) * (0.9 + 0.15 * spectral(h, w, 1.6, t.seed)[..., None])
-    rust = smooth(0.55, 1.0, yy) * (spectral(h, w, 1.3, t.seed + 1) > 0.55)
-    rgb = mix_col(rust * 0.75, rgb, col("#7a4220"))
+    rgb = lerp(col("#a8a28e"), col("#ebe5d2"), hh) * (0.96 + 0.06 * spectral(h, w, 1.6, t.seed)[..., None])
     gap = hh < 0.08
     rgb[gap] *= 0.35
     t.img = Image.fromarray(to8(rgb)); t.d = ImageDraw.Draw(t.img)
@@ -429,9 +423,7 @@ def p_mattress(t):
     x = np.arange(w)
     stripes = ((x // 12) % 2 == 0)
     rgb = np.where(np.repeat(stripes[None, :], h, 0)[..., None], col("#c9c2ae"), col("#8a96a4"))
-    rgb = rgb * (0.9 + 0.12 * spectral(h, w, 1.6, t.seed)[..., None])
-    st = blobs(h, w, 3, t.seed, 20, 50)
-    rgb = mix_col(np.clip(st * 0.5, 0, .5), rgb, col("#9c8452"))
+    rgb = rgb * (0.94 + 0.08 * spectral(h, w, 1.6, t.seed)[..., None])
     t.img = Image.fromarray(to8(rgb)); t.d = ImageDraw.Draw(t.img)
     t.rough = 0.9
 
@@ -465,7 +457,7 @@ def p_upholstery(c):
         for k in range(8):
             x, y = t.r.uniform(0, 256, 2)
             t.d.line([(x, y), (x + t.r.uniform(-40, 40), y + t.r.uniform(-40, 40))], fill=shade(c8(c), 1.25), width=2)
-        t.rough = 0.55 if c == "#4a2a1c" else 0.9
+        t.rough = 0.55 if c in ("#4a2a1c", "#8a3a2c") else 0.9
     return f
 
 
@@ -685,9 +677,11 @@ def p_runner(t):
     t.d.rectangle([0, 0, w, h], fill=c8("#8a1e1a"))
     t.d.rectangle([0, 0, 30, h], fill=c8("#2a4a2a")); t.d.rectangle([w - 30, 0, w, h], fill=c8("#2a4a2a"))
     t.d.rectangle([34, 0, 40, h], fill=c8("#d8c890")); t.d.rectangle([w - 40, 0, w - 34, h], fill=c8("#d8c890"))
+    for y in range(20, h, 48):
+        t.d.polygon([(w / 2, y), (w / 2 + 30, y + 22), (w / 2, y + 44), (w / 2 - 30, y + 22)], outline=c8("#d8c890"), width=3)
     a = np.asarray(t.img) / 255.0
     wear = smooth(0.4, 0.9, spectral(h, w, 2.0, t.seed))
-    a = a * (1 - 0.35 * wear[..., None]) + col("#7a6a5a") * 0.35 * wear[..., None]
+    a = a * (1 - 0.06 * wear[..., None]) + col("#7a6a5a") * 0.06 * wear[..., None]
     t.img = Image.fromarray(to8(a)); t.d = ImageDraw.Draw(t.img)
     t.rough = 0.95
 
@@ -743,12 +737,15 @@ def flat(c, rough=0.6, metal=0.0, amt=0.1):
 
 def p_mirror(t):
     w, h = t.w, t.h
-    g = np.linspace(0.35, 0.6, w)[None, :].repeat(h, 0)
-    rgb = np.dstack([g * 0.95, g, g]) * (0.9 + 0.1 * spectral(h, w, 1.4, t.seed)[..., None])
-    sp = spectral(h, w, 0.6, t.seed + 1) > 0.88
-    rgb[sp] = col("#2a2a28")
+    xx = np.arange(w)[None, :].repeat(h, 0) / w
+    yy = np.arange(h)[:, None].repeat(w, 1) / h
+    g = 0.78 + 0.1 * np.exp(-((xx - yy - 0.1) / 0.12) ** 2)        # bright silvering with a soft highlight
+    rgb = np.dstack([g * 0.97, g, g * 1.01])
+    edge = (xx < 0.03) | (xx > 0.97) | (yy < 0.03) | (yy > 0.97)
+    rgb[edge] = col("#c8ccce")
     t.img = Image.fromarray(to8(rgb)); t.d = ImageDraw.Draw(t.img)
-    t.rough, t.metal = 0.08, 0.9
+    t.rough, t.metal = 0.04, 1.0
+    t.grime = 0
 
 
 def p_emissive(t):
@@ -762,7 +759,372 @@ def p_switch(t):
     t.rough = 0.35
 
 
+# ------------------------------------------------------------- v2 painters (cozy sanatorium)
+def p_bedspread_a(t):
+    """Cream woven bedspread with a red-brown ornamental border and a central medallion."""
+    w, h = t.w, t.h
+    noise_fill(t, "#e4d6b8", 0.08, 1.1)
+    for k, c in enumerate(("#8a3a2a", "#c8a060", "#8a3a2a")):
+        m = 10 + k * 12
+        t.d.rectangle([m, m, w - m, h - m], outline=c8(c), width=6 if k != 1 else 3)
+    cx, cy = w / 2, h / 2
+    for k, c in enumerate(("#8a3a2a", "#c8a060", "#6a7a4a", "#8a3a2a")):
+        r = 70 - k * 16
+        t.d.polygon([(cx, cy - r), (cx + r, cy), (cx, cy + r), (cx - r, cy)], outline=c8(c), width=5)
+    for x in range(48, w - 40, 32):
+        for y in (48, h - 48):
+            t.d.ellipse([x - 4, y - 4, x + 4, y + 4], fill=c8("#b0503a"))
+    for y in range(0, h, 4):
+        t.d.line([(0, y), (w, y)], fill=c8("#d8c8a8"), width=1)
+    t.rough = 0.95
+
+
+def p_bedspread_b(t):
+    """Soft green-and-cream plaid wool blanket."""
+    w, h = t.w, t.h
+    x = np.arange(w)[None, :].repeat(h, 0)
+    y = np.arange(h)[:, None].repeat(w, 1)
+    a = ((x // 32) % 2 == 0).astype(float)
+    b = ((y // 32) % 2 == 0).astype(float)
+    g = (a + b) / 2
+    rgb = lerp(col("#e6dcc0"), col("#5e7a52"), g * 0.9)
+    thin = ((x % 32 < 2) | (y % 32 < 2))
+    rgb[thin] = col("#b84a3a")
+    rgb *= (0.92 + 0.12 * spectral(h, w, 0.8, t.seed)[..., None])
+    t.img = Image.fromarray(to8(rgb)); t.d = ImageDraw.Draw(t.img)
+    t.rough = 0.95
+
+
+def p_chessboard(t):
+    w, h = t.w, t.h
+    grain_fill(t, "#4a2e1a", "#6a442a")
+    s = (w - 32) / 8
+    for i in range(8):
+        for j in range(8):
+            c = "#e2cfa2" if (i + j) % 2 == 0 else "#6a3e22"
+            t.d.rectangle([16 + i * s, 16 + j * s, 16 + (i + 1) * s, 16 + (j + 1) * s], fill=c8(c))
+    t.d.rectangle([16, 16, w - 16, h - 16], outline=c8("#2a1a10"), width=2)
+    t.rough = 0.3
+
+
+def p_checkers(t):
+    p_chessboard(t)
+    w = t.w
+    s = (w - 32) / 8
+    for j in range(8):
+        for i in range(8):
+            if (i + j) % 2 == 1 and (j < 3 or j > 4):
+                cx, cy = 16 + (i + 0.5) * s, 16 + (j + 0.5) * s
+                c = "#f0e8d8" if j < 3 else "#2a1a14"
+                t.d.ellipse([cx - s * 0.36, cy - s * 0.36, cx + s * 0.36, cy + s * 0.36], fill=c8(c), outline=c8("#111"))
+                t.d.ellipse([cx - s * 0.2, cy - s * 0.2, cx + s * 0.2, cy + s * 0.2], outline=c8("#888"))
+
+
+def p_backgammon(t):
+    w, h = t.w, t.h
+    grain_fill(t, "#5a3a22", "#83593a")
+    t.d.rectangle([12, 12, w // 2 - 6, h - 12], fill=c8("#d8c8a0"))
+    t.d.rectangle([w // 2 + 6, 12, w - 12, h - 12], fill=c8("#d8c8a0"))
+    tw = (w // 2 - 18) / 6
+    for half in (0, 1):
+        x0 = 12 + half * (w // 2 - 6)
+        for k in range(6):
+            xa = x0 + k * tw
+            c1, c2 = ("#7a2a1a", "#2a3a2a") if k % 2 else ("#2a3a2a", "#7a2a1a")
+            t.d.polygon([(xa, 12), (xa + tw, 12), (xa + tw / 2, h * 0.42)], fill=c8(c1))
+            t.d.polygon([(xa, h - 12), (xa + tw, h - 12), (xa + tw / 2, h * 0.58)], fill=c8(c2))
+    for (x, y, c) in ((40, 30, "#f0e8d8"), (40, 50, "#f0e8d8"), (200, 220, "#2a1a14"), (200, 200, "#2a1a14"),
+                      (90, 226, "#f0e8d8"), (160, 30, "#2a1a14")):
+        t.d.ellipse([x - 9, y - 9, x + 9, y + 9], fill=c8(c), outline=c8("#555"))
+    t.rough = 0.35
+
+
+def p_billiard_cloth(t):
+    w, h = t.w, t.h
+    noise_fill(t, "#2e6a3a", 0.08, 1.4)
+    for (x, y) in ((10, 10), (w / 2, 4), (w - 10, 10), (10, h - 10), (w / 2, h - 4), (w - 10, h - 10)):
+        t.d.ellipse([x - 16, y - 16, x + 16, y + 16], fill=c8("#0e0e0c"))
+    t.d.line([(w * 0.25, 20), (w * 0.25, h - 20)], fill=c8("#4a8a56"), width=1)
+    for k in range(8):   # Russian billiards: ivory balls in a pyramid + cue ball
+        row = [0, 1, 1, 2, 2, 2, 3, 3][k]
+        idx = [0, 0, 1, 0, 1, 2, 0, 1][k]
+        x = w * 0.68 + row * 14
+        y = h / 2 + (idx - row / 2) * 15
+        t.d.ellipse([x - 7, y - 7, x + 7, y + 7], fill=c8("#ece4cc"), outline=c8("#8a826a"))
+    t.d.ellipse([w * 0.25 - 7, h / 2 - 7, w * 0.25 + 7, h / 2 + 7], fill=c8("#e8c890"), outline=c8("#8a6a3a"))
+    t.rough = 0.95
+
+
+def p_suitcase(t, fabric=False):
+    w, h = t.w, t.h
+    if fabric:
+        x = np.arange(w)[None, :].repeat(h, 0)
+        y = np.arange(h)[:, None].repeat(w, 1)
+        g = (((x // 20) % 2) + ((y // 20) % 2)) / 2
+        rgb = lerp(col("#3a4a6a"), col("#6a7a9a"), g)
+        rgb[(x % 20 < 2) | (y % 20 < 2)] = col("#b8a060")
+        t.img = Image.fromarray(to8(rgb)); t.d = ImageDraw.Draw(t.img)
+    else:
+        noise_fill(t, "#7a4a2a", 0.12, 1.3)
+    t.d.rounded_rectangle([6, 20, w - 6, h - 6], 16, outline=c8("#2a1a10"), width=4)
+    for x in (w * 0.3, w * 0.7):
+        t.d.rectangle([x - 8, 20, x + 8, h - 6], fill=c8("#4a2a16"))
+        t.d.rectangle([x - 10, 60, x + 10, 76], fill=c8("#c8a850"), outline=c8("#6a5020"))
+    t.d.rounded_rectangle([w / 2 - 40, 2, w / 2 + 40, 26], 8, outline=c8("#2a1a10"), width=8)
+    t.d.rectangle([w - 60, h - 70, w - 20, h - 40], fill=c8("#e8dcc0"), outline=c8("#6a5a3a"))
+    t.rough = 0.55
+
+
+def p_luggage_shelf(t):
+    w, h = t.w, t.h
+    t.d.rectangle([0, 0, w, h], fill=c8("#5a4630"))
+    for row in range(3):
+        y1 = (row + 1) * 85 - 6
+        x = 4
+        while x < 240:
+            kind = t.r.integers(3)
+            bw = int(t.r.uniform(46, 70))
+            bh = int(t.r.uniform(40, 66))
+            if x + bw > 252:
+                break
+            c = ["#7a4a2a", "#3a4a6a", "#5a3a2a", "#6a6a5a", "#8a5a3a"][t.r.integers(5)]
+            if kind < 2:
+                t.d.rounded_rectangle([x, y1 - bh, x + bw, y1], 6, fill=c8(c), outline=c8("#1e140c"), width=2)
+                t.d.rectangle([x + bw / 2 - 10, y1 - bh - 5, x + bw / 2 + 10, y1 - bh], fill=c8("#2a1a10"))
+                t.d.rectangle([x + 6, y1 - bh / 2 - 6, x + 14, y1 - bh / 2 + 6], fill=c8("#c8a850"))
+            else:
+                t.d.ellipse([x, y1 - bh * 0.8, x + bw, y1 + 4], fill=c8(c), outline=c8("#1e140c"), width=2)
+            t.d.rectangle([x + bw - 16, y1 - 18, x + bw - 4, y1 - 6], fill=c8("#e8dcc0"))
+            x += bw + 6
+        t.d.rectangle([0, y1, w, y1 + 6], fill=c8("#8a6a44"))
+    t.rough = 0.7
+
+
+def p_physio_panel(t):
+    w, h = t.w, t.h
+    noise_fill(t, "#e2dcc8", 0.05)
+    bevel_rect(t, (8, 8, w - 8, h - 8), c8("#e6e0cc"), hw=3)
+    t.d.rectangle([20, 20, w - 20, 70], fill=c8("#3a4a52"))
+    txt(t, (w / 2, 45), "УВЧ-66", 24, c8("#e8e4d4"))
+    t.d.ellipse([30, 90, 120, 180], fill=c8("#f4f0e2"), outline=c8("#333"), width=3)
+    t.d.line([(75, 135), (100, 105)], fill=c8("#a01810"), width=3)
+    for i, x in enumerate((150, 200)):
+        knob(t, x, 120, 16, "#2a2a2a")
+        knob(t, x, 170, 12, "#2a2a2a")
+    t.d.rectangle([30, 200, 226, 236], fill=c8("#cfc8b2"))
+    for k in range(5):
+        t.d.ellipse([44 + k * 38, 210, 58 + k * 38, 224], fill=c8(["#2a8a3a", "#c8a020", "#a01810", "#333", "#333"][k]))
+    t.rough, t.metal = 0.35, 0.1
+
+
+def p_shower_console(t):
+    w, h = t.w, t.h
+    noise_fill(t, "#d8dcd8", 0.05)
+    bevel_rect(t, (6, 6, w - 6, h - 6), c8("#c8ccc8"), hw=3)
+    txt(t, (w / 2, 28), "ДУШ ШАРКО", 20, c8("#2a3a5a"))
+    for x in (70, 186):
+        t.d.ellipse([x - 40, 50, x + 40, 130], fill=c8("#f4f2ea"), outline=c8("#333"), width=4)
+        t.d.line([(x, 90), (x + 22, 68)], fill=c8("#a01810"), width=3)
+        txt(t, (x, 112), "атм", 10, c8("#333"), "Regular")
+    for x in (60, 128, 196):
+        t.d.ellipse([x - 22, 150, x + 22, 194], fill=c8("#b8bcbe"), outline=c8("#555"), width=3)
+        t.d.rectangle([x - 4, 152, x + 4, 192], fill=c8("#6a6e70"))
+    txt(t, (w / 2, 220), "Т°  ДАВЛЕНИЕ  ВЕЕР", 12, c8("#333"))
+    t.rough, t.metal = 0.25, 0.4
+
+
+def p_bar_front(t):
+    w, h = t.w, t.h
+    grain_fill(t, "#6a4226", "#93653e", vertical=True, k=5)
+    for i in range(4):
+        x0 = 12 + i * (w - 24) / 4
+        x1 = x0 + (w - 24) / 4 - 10
+        t.d.rectangle([x0, 16, x1, h - 30], outline=c8("#3a2414"), width=4)
+        cx, cy = (x0 + x1) / 2, (16 + h - 30) / 2
+        t.d.polygon([(cx, cy - 60), (cx + 40, cy), (cx, cy + 60), (cx - 40, cy)], outline=c8("#4a2e18"), width=4)
+    t.d.rectangle([0, h - 24, w, h], fill=c8("#2a1a10"))
+    t.rough = 0.35
+
+
+def p_buvette_front(t):
+    w, h = t.w, t.h
+    noise_fill(t, "#e6e8e2", 0.04)
+    s = 32
+    for x in range(0, w, s):
+        t.d.line([(x, 0), (x, h)], fill=c8("#b8bcb4"), width=2)
+    for y in range(0, h, s):
+        t.d.line([(0, y), (w, y)], fill=c8("#b8bcb4"), width=2)
+    t.d.rectangle([0, 0, w, 40], fill=c8("#2a5a6a"))
+    txt(t, (w / 2, 20), "МИНЕРАЛЬНЫЕ ВОДЫ", 16, c8("#f0ece0"))
+    for i, (lab, tc) in enumerate((("НАРЗАН", "+14°"), ("ЕССЕНТУКИ", "№ 17"), ("СЛАВЯНОВСКАЯ", "+38°"))):
+        x = 44 + i * 84
+        t.d.rectangle([x - 34, 52, x + 34, 78], fill=c8("#f4f2ea"), outline=c8("#2a5a6a"), width=2)
+        txt(t, (x, 65), lab, 9 if len(lab) > 9 else 11, c8("#1a2a3a"))
+        t.d.rectangle([x - 6, 90, x + 6, 130], fill=c8("#c0c4c6"))
+        t.d.rectangle([x - 18, 128, x + 18, 140], fill=c8("#a8acae"))
+        t.d.line([(x, 140), (x, 160)], fill=c8("#9a9ea0"), width=6)
+        txt(t, (x, 178), tc, 12, c8("#2a3a4a"))
+    t.d.rectangle([10, 200, w - 10, 246], fill=c8("#c8ccc4"))
+    for x in range(20, w - 20, 22):
+        t.d.ellipse([x, 214, x + 10, 224], fill=c8("#8a8e88"))
+    t.rough = 0.15
+
+
+def p_tea_jars(t):
+    w, h = t.w, t.h
+    grain_fill(t, "#6a4628", "#8a6036")
+    labels = ["ШИПОВНИК", "МЯТА", "РОМАШКА", "ЧАБРЕЦ", "ЗВЕРОБОЙ", "ЛИПА", "ДУШИЦА", "МЕЛИССА", "КАЛИНА"]
+    k = 0
+    for row in range(3):
+        y1 = (row + 1) * 85 - 6
+        for i in range(4):
+            x = 10 + i * 61
+            if row == 2 and i == 3:
+                t.d.ellipse([x, y1 - 44, x + 48, y1], fill=c8("#e8e2d0"), outline=c8("#444"))   # teapot
+                t.d.ellipse([x + 14, y1 - 30, x + 34, y1 - 14], fill=c8("#3a6aa0"))
+                continue
+            herb = ["#8a3a1a", "#4a6a2a", "#c8b050", "#6a5a3a", "#9a7a2a"][(row * 4 + i) % 5]
+            t.d.rectangle([x + 4, y1 - 52, x + 44, y1], fill=c8("#cfd8d4"), outline=c8("#7a8a86"))
+            t.d.rectangle([x + 6, y1 - 40, x + 42, y1 - 2], fill=c8(herb))
+            t.d.rectangle([x + 2, y1 - 58, x + 46, y1 - 50], fill=c8("#c8a850"))
+            t.d.rectangle([x + 8, y1 - 30, x + 40, y1 - 18], fill=c8("#f0ead8"))
+            txt(t, (x + 24, y1 - 24), labels[k % len(labels)], 6, c8("#222"))
+            k += 1
+        t.d.rectangle([0, y1, w, y1 + 6], fill=c8("#4a2e18"))
+    t.rough = 0.4
+
+
+def p_tablecloth(t):
+    w, h = t.w, t.h
+    noise_fill(t, "#f2eee2", 0.04, 1.0)
+    for m, c in ((8, "#6a8ab0"), (18, "#c8d4e0")):
+        t.d.rectangle([m, m, w - m, h - m], outline=c8(c), width=4)
+    for x in range(30, w - 20, 24):
+        t.d.ellipse([x - 3, 26, x + 3, 32], fill=c8("#6a8ab0"))
+        t.d.ellipse([x - 3, h - 32, x + 3, h - 26], fill=c8("#6a8ab0"))
+    t.rough = 0.9
+
+
+def p_curtain_med(t):
+    w, h = t.w, t.h
+    x = np.arange(w) / w
+    fold = (np.sin(x * 2 * np.pi * 6) * 0.5 + 0.5)
+    rgb = lerp(col("#b8d0c4"), col("#dce8e0"), np.repeat(fold[None, :], h, 0))
+    rgb *= (0.95 + 0.06 * spectral(h, w, 1.2, t.seed)[..., None])
+    t.img = Image.fromarray(to8(rgb)); t.d = ImageDraw.Draw(t.img)
+    t.d.rectangle([0, 0, w, 10], fill=c8("#e8eee8"))
+    t.rough = 0.9
+
+
+def p_hydro_panel(t):
+    w, h = t.w, t.h
+    noise_fill(t, "#e8e8e2", 0.04)
+    bevel_rect(t, (6, 6, w - 6, h - 6), c8("#e0e2dc"), hw=3)
+    txt(t, (w / 2, 24), "ВАННА ВИХРЕВАЯ", 16, c8("#2a3a5a"))
+    t.d.ellipse([20, 44, 84, 108], fill=c8("#f6f4ec"), outline=c8("#333"), width=3)
+    t.d.line([(52, 76), (70, 56)], fill=c8("#a01810"), width=3)
+    for x in (120, 164, 208):
+        knob(t, x, 76, 14, "#2a2a2a")
+    t.rough, t.metal = 0.3, 0.1
+
+
+def p_gym_mat(t):
+    noise_fill(t, "#3a5a8a", 0.1, 1.2)
+    w, h = t.w, t.h
+    t.d.rectangle([6, 6, w - 6, h - 6], outline=c8("#24406a"), width=4)
+    for x in range(40, w, 40):
+        t.d.line([(x, 6), (x, h - 6)], fill=c8("#2e4c78"), width=2)
+    t.rough = 0.7
+
+
+def p_travel_bag(t):
+    w, h = t.w, t.h
+    noise_fill(t, "#4a5a3a", 0.12)
+    t.d.rounded_rectangle([4, 10, w - 4, h - 4], 30, outline=c8("#2a321e"), width=3)
+    t.d.line([(20, 30), (w - 20, 30)], fill=c8("#c8b070"), width=3)
+    t.d.arc([w / 2 - 60, -30, w / 2 + 60, 40], 20, 160, fill=c8("#2a1a10"), width=8)
+    t.rough = 0.8
+
+
+def p_call_panel(t):
+    w, h = t.w, t.h
+    noise_fill(t, "#e6e2d2", 0.04)
+    bevel_rect(t, (4, 4, w - 4, h - 4), c8("#e0dccc"), hw=2)
+    txt(t, (w / 2, 18), "ВЫЗОВ ИЗ НОМЕРОВ", 13, c8("#2a3a5a"))
+    for k in range(16):
+        x = 20 + (k % 8) * 29
+        y = 50 + (k // 8) * 40
+        t.d.ellipse([x - 9, y - 9, x + 9, y + 9], fill=c8("#e8c8a0" if k != 5 else "#d83a2a"), outline=c8("#555"))
+        txt(t, (x, y + 18), str(201 + k * 2), 8, c8("#333"), "Regular")
+    t.rough, t.metal = 0.35, 0.1
+
+
+def p_dominoes(t):
+    w, h = t.w, t.h
+    t.d.rectangle([0, 0, w, h], fill=c8("#f0ead8"))
+    t.d.line([(0, h / 2), (w, h / 2)], fill=c8("#222"), width=4)
+    for (x, y) in ((32, 32), (96, 32), (64, 32), (32, 96), (96, 96)):
+        t.d.ellipse([x - 9, y - 9, x + 9, y + 9], fill=c8("#1a1a1a"))
+    t.rough = 0.3
+
+
+def p_call_button(t):
+    w, h = t.w, t.h
+    t.d.rectangle([0, 0, w, h], fill=c8("#ece8da"))
+    t.d.rectangle([6, 6, w - 6, h - 6], outline=c8("#aaa69a"), width=3)
+    t.d.ellipse([w / 2 - 30, 22, w / 2 + 30, 82], fill=c8("#c8281e"), outline=c8("#6a1410"), width=3)
+    t.d.ellipse([w / 2 - 14, 34, w / 2 + 6, 50], fill=c8("#e86a5a"))
+    txt(t, (w / 2, 104), "ВЫЗОВ", 16, c8("#222"))
+    t.rough = 0.3
+
+
+def p_radio_front(t):
+    w, h = t.w, t.h
+    noise_fill(t, "#6a4630", 0.08)
+    t.d.rounded_rectangle([6, 6, w - 6, h - 6], 10, fill=c8("#7a5236"), outline=c8("#3a2414"), width=3)
+    t.d.rectangle([16, 16, w - 16, 84], fill=c8("#c8b48a"))
+    for y in range(20, 82, 6):
+        t.d.line([(18, y), (w - 18, y)], fill=c8("#8a7650"), width=2)
+    knob(t, 34, 104, 10, "#e8dcc0"); knob(t, w - 34, 104, 10, "#e8dcc0")
+    txt(t, (w / 2, 104), "МАЯК", 12, c8("#e8dcc0"))
+    t.rough = 0.4
+
+
+def p_towel(t):
+    w, h = t.w, t.h
+    noise_fill(t, "#f2f0ea", 0.08, 0.8)
+    for y in (18, 28, h - 30, h - 20):
+        t.d.rectangle([0, y, w, y + 5], fill=c8("#6a8ab0"))
+    t.rough = 1.0
+
+
+def p_rubber_mat(t):
+    w, h = t.w, t.h
+    noise_fill(t, "#7a2a22", 0.1)
+    for x in range(8, w, 16):
+        for y in range(8, h, 16):
+            t.d.ellipse([x - 4, y - 4, x + 4, y + 4], fill=c8("#3a1410"))
+    t.rough = 0.85
+
+
+def p_bath_mat(t):
+    w, h = t.w, t.h
+    noise_fill(t, "#a8c4d8", 0.15, 0.7)
+    t.d.rectangle([6, 6, w - 6, h - 6], outline=c8("#f0f0e8"), width=6)
+    t.rough = 1.0
+
+
 FURN_PAINT = {
+    "bedspread_a": p_bedspread_a, "bedspread_b": p_bedspread_b, "chessboard": p_chessboard,
+    "checkers_board": p_checkers, "backgammon": p_backgammon, "billiard_cloth": p_billiard_cloth,
+    "suitcase_a": lambda t: p_suitcase(t, False), "suitcase_b": lambda t: p_suitcase(t, True),
+    "luggage_shelf": p_luggage_shelf, "physio_panel": p_physio_panel, "shower_console": p_shower_console,
+    "bar_front": p_bar_front, "buvette_front": p_buvette_front, "tea_jars": p_tea_jars, "tablecloth": p_tablecloth,
+    "curtain_med": p_curtain_med, "hydro_panel": p_hydro_panel, "gym_mat": p_gym_mat, "travel_bag": p_travel_bag,
+    "call_panel": p_call_panel, "dominoes": p_dominoes, "call_button": p_call_button, "radio_front": p_radio_front,
+    "towel": p_towel, "rubber_mat": p_rubber_mat, "bath_mat": p_bath_mat,
+    "upholstery_beige": p_upholstery("#b49a74"), "upholstery_red": p_upholstery("#8a3a2c"),
+    "leatherette_cream": flat("#d8cbae", 0.45, 0, 0.06), "brass": flat("#b89a52", 0.3, 1.0, 0.06),
     "wood_plain": p_wood_plain, "wardrobe_front": p_wardrobe, "bookcase_front": p_bookcase, "filing_front": p_filing,
     "med_cabinet_front": p_med_cabinet, "fridge_front": p_fridge, "elec_panel": p_elec_panel,
     "elevator_door": p_elevator_door, "cabin_wall": p_cabin_wall, "hose_cabinet": p_hose_cabinet,
@@ -813,12 +1175,9 @@ def build_furniture_atlas(out, seed=500):
         rough[y0:y1, x0:x1] = r
         metal[y0:y1, x0:x1] = t.metal
         grime_mask[y0:y1, x0:x1] = t.grime
-    # global ageing: grime, dust and wear (avoids the clean, uniform look)
+    # very light patina only: the sanatorium is clean and in daily use
     g = spectral(H, W, 1.8, seed + 1)
-    dust = smooth(0.55, 0.9, spectral(H, W, 2.2, seed + 2))
-    rgb = rgb * (1 - 0.12 * g[..., None] * grime_mask[..., None])
-    rgb = rgb * (1 - 0.15 * dust[..., None] * grime_mask[..., None]) + col("#8a8476") * 0.15 * dust[..., None] * grime_mask[..., None]
-    rough = np.clip(rough + 0.15 * dust * grime_mask, 0, 1)
+    rgb = rgb * (1 - 0.04 * g[..., None] * grime_mask[..., None])
     save_set(out, "T_Atlas_Furniture", np.clip(rgb, 0, 1), rough, ao=cavity_ao(hgt, 3, 1.5), height=hgt,
              nstrength=4.0, metal=metal)
 
@@ -858,6 +1217,21 @@ def poster(t, bg, title, sub, motif):
     elif motif == "food":
         t.d.ellipse([50, 100, 206, 220], fill=c8("#f0ece0", 255), outline=c8("#888", 255), width=3)
         t.d.ellipse([90, 130, 166, 190], fill=c8("#c8a050", 255))
+    elif motif == "glass":
+        t.d.polygon([(90, 80), (166, 80), (156, 220), (100, 220)], fill=c8("#cfe4ee", 255), outline=c8("#5a7a8a", 255))
+        t.d.polygon([(96, 120), (160, 120), (156, 216), (100, 216)], fill=c8("#9cc8dc", 255))
+        for k in range(6):
+            t.d.ellipse([110 + k * 7, 200 - k * 14, 116 + k * 7, 206 - k * 14], outline=c8("#f0f8ff", 255), width=2)
+        t.d.polygon([(30, 230), (80, 150), (130, 230)], fill=c8("#7a8a6a", 255))
+        t.d.polygon([(130, 230), (190, 130), (240, 230)], fill=c8("#6a7a5a", 255))
+    elif motif == "leaf":
+        for k in range(5):
+            a = -np.pi / 2 + (k - 2) * 0.45
+            x1, y1 = w / 2 + 90 * np.cos(a), 220 + 130 * np.sin(a)
+            t.d.polygon([(w / 2, 220), ((w / 2 + x1) / 2 - 22, (220 + y1) / 2), (x1, y1), ((w / 2 + x1) / 2 + 22, (220 + y1) / 2)],
+                        fill=c8(["#4e7a32", "#5e8a3a", "#3e6a2a"][k % 3], 255))
+        t.d.ellipse([w / 2 - 40, 160, w / 2 + 40, 230], fill=c8("#f0e8d8", 255), outline=c8("#8a6a3a", 255), width=3)
+        t.d.ellipse([w / 2 - 30, 170, w / 2 + 30, 200], fill=c8("#b8803a", 255))
     yy = 252
     for line in title:
         txt(t, (w / 2, yy), line, 24, c8("#9a1a12", 255), "Black"); yy += 28
@@ -932,6 +1306,30 @@ def d_curtain(t):
 
 def d_plant(t, kind):
     w, h = t.w, t.h
+    if kind == 3:      # fan palm (tall)
+        for k in range(9):
+            a = -np.pi / 2 + (k - 4) * 0.33
+            x0, y0 = w / 2, h - 10
+            xm, ym = w / 2 + (k - 4) * 6, h * 0.45
+            x1, y1 = xm + np.cos(a) * 110, ym + np.sin(a) * 120
+            t.d.line([(x0, y0), (xm, ym)], fill=c8("#5a4a2a", 255), width=4)
+            for j in range(9):
+                b = a + (j - 4) * 0.16
+                t.d.line([(xm, ym), (xm + np.cos(b) * 105, ym + np.sin(b) * 115)],
+                         fill=c8(["#2e5a26", "#3e6a2a", "#4a7a32"][j % 3], 255), width=5)
+            t.d.line([(xm, ym), (x1, y1)], fill=c8("#2a4a22", 255), width=2)
+        return
+    if kind == 4:      # flowering geranium bush
+        for k in range(40):
+            x, y = t.r.uniform(40, 216), t.r.uniform(60, 240)
+            t.d.ellipse([x - 16, y - 12, x + 16, y + 12], fill=c8(["#3e6a2a", "#4e7a32", "#2e5a26"][k % 3], 255))
+        for k in range(14):
+            x, y = t.r.uniform(50, 206), t.r.uniform(50, 190)
+            for j in range(5):
+                a = j * 2 * np.pi / 5
+                t.d.ellipse([x + 6 * np.cos(a) - 5, y + 6 * np.sin(a) - 5, x + 6 * np.cos(a) + 5, y + 6 * np.sin(a) + 5],
+                            fill=c8(["#d83a3a", "#e85a6a", "#c82a3a"][k % 3], 255))
+        return
     for k in range(26 if kind == 1 else 14):
         a = t.r.uniform(-2.6, -0.5)
         L = t.r.uniform(60, 120)
@@ -944,10 +1342,6 @@ def d_plant(t, kind):
         else:
             t.d.line([(x0, y0), (x1, y1)], fill=c8("#3a4a22", 255), width=3)
             t.d.ellipse([x1 - 22, y1 - 14, x1 + 22, y1 + 14], fill=cc)
-    if t.r.random() < 2:
-        for k in range(4):
-            x, y = t.r.uniform(40, 216), t.r.uniform(60, 200)
-            t.d.ellipse([x - 8, y - 5, x + 8, y + 5], fill=c8("#8a7a3a", 255))   # dry leaves
 
 
 def d_chair_legs(t, tube):
@@ -1062,6 +1456,19 @@ def d_wall_carpet(t):
 def d_painting(t, k):
     w, h = t.w, t.h
     t.d.rectangle([0, 0, w, h], fill=c8("#6a4a22", 255))
+    if k == 3:   # wide gilt-framed seascape with a pier and pines (salt room, lounges)
+        t.d.rectangle([4, 4, w - 4, h - 4], outline=c8("#c8a050", 255), width=6)
+        t.d.rectangle([18, 18, w - 18, h * 0.55], fill=c8("#a8c8dc", 255))
+        t.d.ellipse([w * 0.7, 30, w * 0.7 + 50, 80], fill=c8("#f0d890", 255))
+        t.d.rectangle([18, h * 0.55, w - 18, h * 0.8], fill=c8("#3a7aa0", 255))
+        for y in range(int(h * 0.58), int(h * 0.8), 8):
+            t.d.line([(30, y), (w - 30, y)], fill=c8("#5a9ac0", 255), width=2)
+        t.d.rectangle([18, h * 0.8, w - 18, h - 18], fill=c8("#d8c090", 255))
+        t.d.rectangle([w * 0.35, h * 0.62, w * 0.5, h * 0.66], fill=c8("#6a4a2a", 255))
+        for x in (40, 70, 420, 460):
+            t.d.rectangle([x, h * 0.3, x + 6, h * 0.82], fill=c8("#5a3a22", 255))
+            t.d.polygon([(x - 30, h * 0.45), (x + 3, 24), (x + 36, h * 0.45)], fill=c8("#2a4a2a", 255))
+        return
     sky = "#9ab4c8" if k == 1 else "#c8b48a"
     t.d.rectangle([14, 14, w - 14, h - 14], fill=c8(sky, 255))
     if k == 1:   # birches by a lake
@@ -1087,8 +1494,8 @@ def d_calendar(t):
     w, h = t.w, t.h
     t.d.rectangle([0, 0, w, h], fill=c8("#e8e2cc", 255), outline=c8("#888", 255))
     t.d.rectangle([0, 0, w, 50], fill=c8("#9a2a1a", 255))
-    txt(t, (w / 2, 25), "1991", 26, c8("#f0e8d0", 255))
-    txt(t, (w / 2, 66), "АВГУСТ", 13, c8("#222", 255))
+    txt(t, (w / 2, 25), "1982", 26, c8("#f0e8d0", 255))
+    txt(t, (w / 2, 66), "ИЮЛЬ", 13, c8("#222", 255))
     for i in range(31):
         x, y = 14 + (i % 7) * 15, 86 + (i // 7) * 18
         t.d.text((x, y), str(i + 1), font=font(9), fill=c8("#c02a20" if i % 7 == 6 else "#333", 255))
@@ -1118,16 +1525,30 @@ def build_decal_atlas(out, seed=900):
                                           "13:00 Обед", "14:00 Тихий час", "19:00 Ужин", "22:00 Отбой"], 18, 12),
         "menu_board": lambda t: text_sheet(t, "#2a3a2e", "МЕНЮ", ["Суп молочный", "Котлета паровая", "Пюре",
                                                                   "Кисель", "~"], 22, 13),
-        "lift_rules": lambda t: text_sheet(t, "#e8e2cc", "ПРАВИЛА", ["Лифт служебный.", "Пользоваться только",
-                                                                   "в сопровождении", "персонала по ключу.",
-                                                                   "Детям до 14 лет", "без взрослых запрещено.",
-                                                                   "~", "Ответственный: Петров А.И."], 20, 12),
+        "lift_rules": lambda t: text_sheet(t, "#e8e2cc", "ПРАВИЛА", ["Нажмите кнопку", "«ВЫЗОВ» и дождитесь",
+                                                                   "остановки кабины.", "Грузоподъёмность",
+                                                                   "1000 кг (12 чел.).", "Коляски и каталки —",
+                                                                   "с сопровождающим.", "Дежурная: тел. 2-15"], 20, 12),
         "plant_1": lambda t: d_plant(t, 1), "plant_2": lambda t: d_plant(t, 2),
+        "plant_3": lambda t: d_plant(t, 3), "plant_4": lambda t: d_plant(t, 4),
         "chair_legs_wood": lambda t: d_chair_legs(t, False), "chair_legs_tube": lambda t: d_chair_legs(t, True),
         "bed_head_tube": d_bed_head, "railing": d_railing, "wheel": d_wheel,
-        "papers_1": lambda t: d_papers(t, 3), "papers_2": lambda t: d_papers(t, 5),
-        "stain_floor": lambda t: d_stain(t, "#4a3e2a", 0.5), "stain_wall": lambda t: d_stain(t, "#8a7448", 0.45),
-        "soot": lambda t: d_stain(t, "#2a2622", 0.55), "dust_sheet": lambda t: alpha_noise_fill(t, "#8a8476", 0.0, 0.5),
+        "papers_1": lambda t: d_papers(t, 3),
+        "poster_7": lambda t: poster(t, "#e2ecf0", ["МИНЕРАЛЬНЫЕ", "ВОДЫ"], ["целебная сила Кавказа"], "glass"),
+        "poster_8": lambda t: poster(t, "#eef0dc", ["ФИТОЧАЙ —", "ДЛЯ ЗДОРОВЬЯ"], ["Пейте травяной чай"], "leaf"),
+        "poster_9": lambda t: poster(t, "#e6ecd8", ["ЛЕЧЕБНАЯ", "ФИЗКУЛЬТУРА"], ["Занятия в зале ЛФК 10:00"], "runner"),
+        "poster_10": lambda t: poster(t, "#f2e8cc", ["ОТДЫХАЙТЕ", "НА ЗДОРОВЬЕ!"], ["Добро пожаловать"], "sun"),
+        "painting_3": lambda t: d_painting(t, 3),
+        "welcome_banner": lambda t: sign(t, "#9a1e18", "#f4ead0", "ДОБРО ПОЖАЛОВАТЬ!", 40),
+        "menu_phyto": lambda t: text_sheet(t, "#eef0dc", "ФИТОБАР", ["Чай с шиповником", "Мятный чай с мёдом",
+                                                                    "Сбор «Горный»", "Кислородный коктейль",
+                                                                    "Минеральная вода"], 22, 13),
+        "buvette_sign": lambda t: sign(t, "#2a5a6a", "#f0ece0", "БЮВЕТ", 30, "минеральные воды"),
+        "schedule_proc": lambda t: text_sheet(t, "#e8eee8", "РАСПИСАНИЕ ПРОЦЕДУР",
+                                              ["8:30  Ванны, души", "9:00  Массаж", "9:30  Физиотерапия",
+                                               "10:00 ЛФК (группа)", "11:00 Соляная пещера", "16:00 Ингаляции",
+                                               "17:00 Фитобар"], 15, 12),
+        "arrow_spa": lambda t: arrow_sign(t, "Процедуры"),
         "vent_grille": lambda t: [t.d.rectangle([0, 0, 128, 128], fill=c8("#d8d4c6", 255))] + [
             t.d.rectangle([12, y, 116, y + 6], fill=c8("#2a2a28", 255)) for y in range(14, 116, 12)],
         "socket": lambda t: [t.d.ellipse([2, 2, 62, 62], fill=c8("#e0dcc8", 255), outline=c8("#888", 255)),
@@ -1141,8 +1562,7 @@ def build_decal_atlas(out, seed=900):
                                  t.d.rectangle([28, 56, 100, 72], fill=c8("#333", 255)),
                                  t.d.line([(24, 24), (104, 104)], fill=c8("#c02a20", 255), width=10)],
         "keep_out": lambda t: sign(t, "#f0e8d0", "#9a1a12", "ПОСТОРОННИМ", 24, "вход воспрещён"),
-        "lift_sign": lambda t: sign(t, "#2a3a5a", "#e8e2cc", "ЛИФТ СЛУЖЕБНЫЙ", 24, "для персонала и больных"),
-        "key_only": lambda t: sign(t, "#e8d040", "#1a1a1a", "ТОЛЬКО ПО КЛЮЧУ", 22, "ключ у дежурной медсестры"),
+        "lift_sign": lambda t: sign(t, "#2a3a5a", "#e8e2cc", "ЛИФТ", 34, "для отдыхающих и персонала"),
         "wc_m": lambda t: sign(t, "#2a3a5a", "#e8e2cc", "М", 56), "wc_f": lambda t: sign(t, "#7a2a3a", "#e8e2cc", "Ж", 56),
         "wc_access": lambda t: sign(t, "#2a4a8a", "#ffffff", "♿", 56),
         "silence": lambda t: sign(t, "#e8e2cc", "#2a3a5a", "ТИХО!", 30, "идёт приём"),
@@ -1153,7 +1573,6 @@ def build_decal_atlas(out, seed=900):
         "roof_hatch": lambda t: sign(t, "#e8e2cc", "#1a1a1a", "ВЫХОД НА КРОВЛЮ", 18),
         "electro_warning": lambda t: [t.d.polygon([(64, 6), (6, 120), (122, 120)], fill=c8("#e8c82a", 255), outline=c8("#111", 255)),
                                       t.d.line([(70, 40), (56, 78), (72, 76), (58, 110)], fill=c8("#111", 255), width=6)],
-        "dirt_strip": lambda t: alpha_noise_fill(t, "#3a342a", 0.0, 0.6, 1.0),
         "frame_photo": d_frame_photo,
     }
     rgba_img = np.zeros((S2, S2, 4), np.float32)
@@ -1164,9 +1583,9 @@ def build_decal_atlas(out, seed=900):
         canvas.paste(t.img, (x0, y0))
     a = np.asarray(canvas, np.float32) / 255.0
     rgb, al = a[..., :3], a[..., 3]
-    # paper/plastic ageing: yellowing and grime only where opaque
+    # slight paper tone only (prints are kept fresh)
     g = spectral(S2, S2, 1.8, seed + 1)
-    rgb = rgb * (0.88 + 0.1 * g[..., None]) * np.array([1.0, 0.97, 0.9])[None, None, :]
+    rgb = rgb * (0.96 + 0.04 * g[..., None]) * np.array([1.0, 0.99, 0.96])[None, None, :]
     lum = rgb.mean(-1)
     save_set(out, "T_Atlas_Decals", np.clip(rgb, 0, 1), np.full((S2, S2), 0.75), alpha=al,
              height=lum * 0.3, nstrength=1.5)
@@ -1179,14 +1598,14 @@ def build_sign_atlas(out, plan, seed=1300):
     S2 = A.SIGN_SIZE
     canvas = Image.new("RGB", (S2, S2), (40, 40, 40))
     special = {
-        "SPEC_lift_service": ("ЛИФТ", "служебный"), "SPEC_machine": ("Машинное", "помещение лифта"),
+        "SPEC_lift_service": ("ЛИФТ", "пассажирский"), "SPEC_machine": ("Машинное", "помещение лифта"),
         "SPEC_stair1": ("Лестница", "№ 1"), "SPEC_stair2": ("Лестница", "№ 2"), "SPEC_stair3": ("Лестница", "№ 3"),
         "SPEC_shower_m": ("Душевая", "мужская"), "SPEC_shower_f": ("Душевая", "женская"),
     }
     r = np.random.default_rng(seed)
     for k in keys:
         x0, y0, x1, y1 = boxes[k]
-        t = Tile(x1 - x0, y1 - y0, seed + hash(k) % 10000)
+        t = Tile(x1 - x0, y1 - y0, seed + zlib.crc32(k.encode()) % 10000)
         if k in special:
             a, b = special[k]
             num = ""
@@ -1195,8 +1614,10 @@ def build_sign_atlas(out, plan, seed=1300):
             num = room.num
             a = room.ru
             b = ""
-        style = r.integers(3)
-        bg, fg = [("#1f2f4f", "#e8e2c8"), ("#e6e0cc", "#1a1a1a"), ("#2a2a28", "#d8c070")][style]
+        # one consistent plate style per department group (guest floors: wood-tone, services: blue enamel)
+        dept = plan.rooms[k].dept if k in plan.rooms else "CIRC"
+        bg, fg = {"P_patient": ("#5a3a22", "#f0e2c0"), "S_spa": ("#2a5a6a", "#f0ece0")}.get(
+            dept, ("#1f2f4f", "#e8e2c8"))
         t.d.rectangle([0, 0, t.w, t.h], fill=c8(bg))
         t.d.rectangle([3, 3, t.w - 4, t.h - 4], outline=c8(fg), width=2)
         if num:
@@ -1220,9 +1641,7 @@ def build_sign_atlas(out, plan, seed=1300):
             txt(t, (t.w / 2, t.h * 0.72), b, 16, c8(fg), "Regular")
         im = np.asarray(t.img, np.float32) / 255.0
         n = spectral(t.h, t.w, 1.6, seed + x0 + y0)
-        im = im * (0.85 + 0.2 * n[..., None])
-        if r.random() < 0.25:   # sun-faded plate
-            im = im * 0.75 + 0.25 * col("#b8b0a0")
+        im = im * (0.96 + 0.05 * n[..., None])
         canvas.paste(Image.fromarray(to8(im)), (x0, y0))
     a = np.asarray(canvas, np.float32) / 255.0
     save_set(out, "T_Atlas_Signs", a, np.full((S2, S2), 0.35), height=a.mean(-1) * 0.2, nstrength=1.0)

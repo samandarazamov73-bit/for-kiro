@@ -1,8 +1,9 @@
-"""Key-operated service/bed elevator (1970s Soviet type, lower machine room).
+"""Passenger / bed elevator for the guests (1970s Soviet type, lower machine room).
 
 Shaft x 36.2-38.8, y 3.7-6.5 (clear 2.6 x 2.8 m), pit at +-0.2, head under the roof slab.
-Cabin 1.9 x 2.2 x 2.2 m clear (wheelchair + attendant / stretcher), door 1.1 m centre-opening,
-parked at floor 1 with all doors closed. Landing call panels and the cabin panel need a key."""
+Cabin 1.9 x 2.2 x 2.2 m clear (wheelchair + attendant or a bed), 1000 kg, door 1.2 m centre-opening.
+Free to use: a call button on every landing, floor buttons in the cabin. The cabin waits at floor 1
+with the landing and cabin doors open; on the other floors the landing doors are closed."""
 import math
 from .params import *
 from .meshkit import MB
@@ -11,7 +12,6 @@ from .atlas import FURN_UV, DECAL_UV
 SX0, SX1, SY0, SY1 = SHAFT
 CAB = dict(x0=36.55, x1=38.45, y0=4.05, y1=6.25, h=2.2)   # clear inside
 WALL_T = 0.05
-KEY_ID = "KEY_LIFT_SERVICE_01"
 
 
 def R(region):
@@ -29,8 +29,9 @@ def face_y(mb, x0, x1, z0, z1, y, want, mat, uv):
               mat, want)
 
 
-def landing(level):
-    """Corridor-side portal, closed two-leaf landing door, floor indicator, call panel, signs."""
+def landing(level, open_=False):
+    """Corridor-side portal, two-leaf landing door (open where the cabin waits), floor indicator,
+    call panel, signs."""
     L = LEVELS[level]
     mb = MB(f"Lift_Landing_L{level}")
     cx, w, h = LIFT_DOOR_X, LIFT_DOOR_W, LIFT_DOOR_H
@@ -50,11 +51,12 @@ def landing(level):
     # steel sill
     mb.box(cx - w / 2, cx + w / 2, ys - 0.05, yc + 0.03, L - 0.02, L + 0.005, "atlas_furn", faces=("+z", "+y"),
            uv="region", regions={"*": "aluminium"})
-    # closed centre-opening landing doors (two leaves), 20 mm meeting gap shown by the texture
+    # centre-opening landing doors (two leaves); open = slid into the wall pockets beside the opening
     u0, v0, u1, v1 = FURN_UV["elevator_door"]
     um = (u0 + u1) / 2
     yd = ys + 0.06
-    for (x0, x1, ua, ub) in ((cx - w / 2 - 0.02, cx, u0, um), (cx, cx + w / 2 + 0.02, um, u1)):
+    sh = w / 2 if open_ else 0.0
+    for (x0, x1, ua, ub) in ((cx - w / 2 - 0.02 - sh, cx - sh, u0, um), (cx + sh, cx + w / 2 + 0.02 + sh, um, u1)):
         uv = [(ua, v0), (ub, v0), (ub, v1), (ua, v1)]
         mb.poly_n([(x0, yd + 0.03, L), (x1, yd + 0.03, L), (x1, yd + 0.03, L + h), (x0, yd + 0.03, L + h)], uv,
                   "atlas_furn", (0, 1, 0))
@@ -74,21 +76,18 @@ def landing(level):
     nd = [(px - nrm[0] * 0.15, yc + 0.075, pz - nrm[1] * 0.15), (px + nrm[0] * 0.15, yc + 0.075, pz + nrm[1] * 0.15),
           (px + nx, yc + 0.075, pz + nz), (px + nx, yc + 0.075, pz + nz)]
     mb.poly_n(nd[:3], R("black_plastic")[:3], "atlas_furn", (0, 1, 0))
-    # call panel with key switch beside the door (latch side, towards +X)
+    # call panel beside the door (towards +X), button at 1.0 m (reachable from a wheelchair)
     kx = cx + w / 2 + pw + 0.12
-    mb.box(kx - 0.065, kx + 0.065, yc, yc + 0.025, L + 0.85, L + 1.35, "atlas_furn", faces=("-x", "+x", "+z", "-z"),
+    pz0, pz1 = L + 0.78, L + 1.28
+    mb.box(kx - 0.065, kx + 0.065, yc, yc + 0.025, pz0, pz1, "atlas_furn", faces=("-x", "+x", "+z", "-z"),
            uv="region", regions={"*": "metal_grey"})
-    face_y(mb, kx - 0.065, kx + 0.065, L + 0.85, L + 1.35, yc + 0.025, (0, 1, 0), "atlas_furn", R("landing_panel"))
-    # call button and key-switch cylinders (real geometry; keyhole slot in the texture)
-    _knob(mb, kx, yc + 0.025, L + 0.85 + 0.5 * (1 - 180 / 512), 0.022, 0.012, "black_plastic")
-    _knob(mb, kx, yc + 0.025, L + 0.85 + 0.5 * (1 - 300 / 512), 0.024, 0.018, "chrome")
-    # restricted-use signs (decals) left of the portal and above the indicator
+    face_y(mb, kx - 0.065, kx + 0.065, pz0, pz1, yc + 0.025, (0, 1, 0), "atlas_furn", R("landing_panel"))
+    _knob(mb, kx, yc + 0.025, pz0 + 0.5 * (1 - 180 / 512), 0.024, 0.014, "black_plastic")
+    # lift sign and rules (decals) left of the portal
     dec = MB(f"Lift_Signs_L{level}")
     sx = cx - w / 2 - pw - 0.05
-    for (x0, x1, z0, z1, reg) in ((sx - 0.42, sx, L + 1.55, L + 1.76, "lift_sign"),
-                                   (sx - 0.42, sx, L + 1.30, L + 1.51, "key_only"),
-                                   (sx - 0.33, sx - 0.09, L + 0.95, L + 1.27, "lift_rules"),
-                                   (kx - 0.13, kx + 0.13, L + 1.45, L + 1.55, "keep_out")):
+    for (x0, x1, z0, z1, reg) in ((sx - 0.5, sx, L + 1.55, L + 1.80, "lift_sign"),
+                                   (sx - 0.36, sx - 0.12, L + 1.12, L + 1.44, "lift_rules")):
         face_y(dec, x0, x1, z0, z1, yc + 0.004, (0, 1, 0), "atlas_decal", RD(reg))
     return mb, dec
 
@@ -108,8 +107,8 @@ def _knob(mb, x, y, z, r, depth, region, sides=8):
     mb.poly_n(ring1, [((u0 + u1) / 2, (v0 + v1) / 2)] * sides, "atlas_furn", (0, 1, 0))
 
 
-def cabin(floor_z):
-    """Cabin parked with its floor at floor_z; separate object so it can be animated in an engine."""
+def cabin(floor_z, open_=True):
+    """Cabin parked with its floor at floor_z (doors open); separate object so it can be animated."""
     mb = MB("Lift_Cabin")
     c = CAB
     x0, x1, y0, y1, h = c["x0"], c["x1"], c["y0"], c["y1"], c["h"]
@@ -140,14 +139,15 @@ def cabin(floor_z):
     mb.poly_n([(dx0, y1, z0), (dx1, y1, z0), (dx1, Y1, z0), (dx0, Y1, z0)], R("aluminium"), "atlas_furn", (0, 0, 1))
     mb.box(36.8, 37.3, 4.4, 4.8, Z1, Z1 + 0.25, "atlas_furn", faces=("-x", "+x", "-y", "+y", "+z"), uv="region",
            regions={"*": "metal_green", "+y": "fuse_board"})
-    # closed cabin doors (inside face)
+    # cabin doors (inside face); open = slid behind the front wall panels
     u0, v0, u1, v1 = FURN_UV["elevator_door"]
     um = (u0 + u1) / 2
-    for (a, b, ua, ub) in ((dx0 - 0.02, LIFT_DOOR_X, u0, um), (LIFT_DOOR_X, dx1 + 0.02, um, u1)):
+    sh = LIFT_DOOR_W / 2 if open_ else 0.0
+    for (a, b, ua, ub) in ((dx0 - 0.02 - sh, LIFT_DOOR_X - sh, u0, um), (LIFT_DOOR_X + sh, dx1 + 0.02 + sh, um, u1)):
         uv = [(ub, v0), (ua, v0), (ua, v1), (ub, v1)]
         mb.poly_n([(a, y1 + 0.02, z0), (b, y1 + 0.02, z0), (b, y1 + 0.02, z0 + LIFT_DOOR_H), (a, y1 + 0.02, z0 + LIFT_DOOR_H)],
                   uv, "atlas_furn", (0, -1, 0))
-    # control panel on the door wall (inside), right of the opening: buttons 4..1, STOP, CALL, key switch
+    # control panel on the door wall (inside), right of the opening: buttons 4..1, STOP, CALL, DOOR OPEN
     px0, px1 = dx1 + 0.12, dx1 + 0.28
     pz0, pz1 = z0 + 0.85, z0 + 1.55
     mb.box(px0, px1, y1 - 0.03, y1, pz0, pz1, "atlas_furn", faces=("-x", "+x", "+z", "-z"), uv="region",
@@ -156,10 +156,15 @@ def cabin(floor_z):
     pcx = (px0 + px1) / 2
     for i, frac in enumerate((70, 126, 182, 238, 310, 370, 432)):
         zz = pz1 - (pz1 - pz0) * frac / 512
-        region = {4: "red_paint", 5: "key_metal", 6: "chrome"}.get(i, "black_plastic")
+        region = {4: "red_paint", 5: "brass"}.get(i, "black_plastic")
         _knob_neg(mb, pcx, y1 - 0.03, zz, 0.016 if i < 4 else 0.02, 0.01, region)
-    # handrail on the back wall (accessibility)
+    # handrails on the back and side walls (accessibility)
     mb.tube_region([(x0 + 0.15, y0 + 0.05, z0 + 0.9), (x1 - 0.15, y0 + 0.05, z0 + 0.9)], 0.018, "chrome", 6, True, True)
+    for x, sx in ((x0 + 0.05, 1), (x1 - 0.05, -1)):
+        mb.tube_region([(x, y0 + 0.2, z0 + 0.9), (x, y1 - 0.35, z0 + 0.9)], 0.018, "chrome", 6, True, True)
+    # fold-down seat on the left wall
+    mb.box(x0, x0 + 0.32, y0 + 0.75, y0 + 1.2, z0 + 0.48, z0 + 0.52, "atlas_furn", faces=("+x", "-y", "+y", "+z", "-z"),
+           uv="region", regions={"*": "wood_light"})
     return mb
 
 
@@ -231,6 +236,7 @@ def machine_room():
 
 
 def props():
-    return {"elevator": True, "locked": True, "requires_key": KEY_ID, "parked_level": 1, "doors_closed": True,
-            "capacity_kg": 500, "cabin_clear_m": "1.9 x 2.2 x 2.2", "door_clear_m": LIFT_DOOR_W,
-            "control": "key switch on every landing panel and in the cabin"}
+    return {"elevator": True, "locked": False, "public": True, "parked_level": 1, "doors_open_level": 1,
+            "capacity_kg": 1000, "capacity_persons": 12, "cabin_clear_m": "1.9 x 2.2 x 2.2",
+            "door_clear_m": LIFT_DOOR_W,
+            "control": "call button on every landing; cabin buttons 1-4, stop, dispatcher call, door open"}

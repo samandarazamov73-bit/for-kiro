@@ -84,3 +84,6 @@ class Library:
         for k, v in (props or {}).items():
             ob[k] = v
         return ob
+
+    def remove(self, ob):
+        bpy.data.objects.remove(ob, do_unlink=True)

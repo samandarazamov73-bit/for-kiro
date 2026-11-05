@@ -67,7 +67,7 @@ SHAFT = (36.2, 38.8, 3.7, 6.5)     # x0, x1, y0, y1 (clear)
 SHAFT_PIT_Z = FFL - 1.4
 SHAFT_TOP_Z = 14.3
 LIFT_DOOR_X = 37.5
-LIFT_DOOR_W = 1.1
+LIFT_DOOR_W = 1.2
 LIFT_DOOR_H = 2.0
 
 

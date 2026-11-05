@@ -1,36 +1,38 @@
-# Sanatorium interior (c. 1975) inside the existing building
+# Sanatorium interior (c. 1975–85) inside the existing building
 
-The interior is built inside the existing exterior model (`export/SovietSchool.glb`), which is the only building in this repository. The exterior files are not modified. The new files contain the exterior plus a complete, explorable interior: 4 floors, 209 rooms, 234 doors and openings, 3 staircases and a key-locked service elevator. Every one of the 217 exterior windows opens into a real room.
+The interior is built inside the existing exterior model (`export/SovietSchool.glb`), which is the only building in this repository. The exterior files are not modified.
 
-The 1st floor holds reception, administration, the medical department, dining/catering and technical rooms, and has **no patient bedrooms**. Floors 2–4 are patient accommodation with nursing support rooms.
+The building is a clean, fully working Soviet sanatorium for elderly guests. Every lamp works, the beds are made, the rooms are tidy, and the corridors have handrails and soft seating. The 1st floor holds reception, a phyto-bar, the treatment (spa) department, the medical department, dining and service rooms. Floors 2–4 are guest floors with rooms that each have their own bathroom.
 
-**Triangles:** interior 63,639, exterior 42,040, combined scene ≈ 105,700. Repeated modules (doors, beds, radiators, fixtures...) are shared meshes, so glTF instancing keeps the files small.
+Overview of all views: [`renders/interior_overview.jpg`](renders/interior_overview.jpg).
+
+**Triangles:** interior 113,764, exterior 42,040, combined scene 155,804 (budget 200k). Repeated modules (beds, chairs, doors, radiators, lamps...) are shared meshes, so glTF instancing keeps the files small.
 
 ## Deliverables
 
 | Path | Content |
 |---|---|
 | `export/blend/SovietSanatorium.blend` | Blender 4.5 LTS scene: exterior + interior. Textures are linked relatively from `textures/`. Collections per floor, one empty per room with metadata. |
-| `export/SovietSanatorium.glb` | glTF 2.0 binary, exterior + interior, textures embedded (JPEG), 279 punctual lights, custom properties as `extras` (19 MB) |
-| `export/SovietSanatorium_Interior.glb` | Interior only, same structure (9.5 MB) |
-| `export/fbx/SovietSanatorium.fbx` | FBX, Y-up, textures referenced from `textures/` |
+| `export/SovietSanatorium.glb` | glTF 2.0 binary, exterior + interior, textures embedded (JPEG), 592 punctual lights plus the sun, custom properties as `extras` (19.8 MB) |
+| `export/SovietSanatorium_Interior.glb` | Interior only, same structure (10.1 MB) |
+| `export/fbx/SovietSanatorium.fbx` | FBX, Y-up, textures referenced from `textures/` (6.8 MB) |
 | `plans/plan_floor1..4.png` | Floor plans generated from the same data as the 3D model |
 | `plans/rooms.csv` | Room schedule: floor, number, Russian/English name, department, area, windows, doors |
-| `renders/interior/` | Cycles renders of the main spaces |
-| `textures/T_*` (22 new sets) | Interior PBR sets and atlases (see below). The 10 exterior sets are unchanged. |
-| `tools/blender/` | Python source of the whole interior pipeline (plan data, validator, textures, geometry, renders) |
+| `renders/interior/` | 24 Cycles renders of the main spaces; `renders/interior_overview.jpg` shows them all |
+| `textures/T_*` (23 new sets) | Interior PBR sets and atlases (see below). The 10 exterior sets are unchanged. |
+| `tools/blender/` | Python source of the whole interior pipeline (plan data, validator, textures, geometry, furnishing, renders) |
 
-The original `SovietSchool.*` files are untouched. The exterior inside the new files differs in two ways only. The window glass uses a see-through dusty glass material instead of the fake-room atlas, because real rooms are now behind it. The window frames are double-sided.
+The original `SovietSchool.*` files are untouched. The exterior inside the new files differs in two ways only. The window glass uses a clear glass material instead of the fake-room atlas, because real rooms are now behind it. The window frames are double-sided.
 
 ## Building facts used
 
 All dimensions come from the Go generator (`tools/cmd/build`) and are reproduced in `tools/blender/sanatorium/params.py` and `exterior.py`:
 
 - Main wing 75.0 × 16.2 m, 25 bays × 3.0 m, 4 floors at +1.20 / +4.50 / +7.80 / +11.10 (floor-to-floor 3.3 m), roof +14.60.
-- Entrance block 12.0 × 19.5 m in front of bays 9–12, ground floor plus a double-height hall up to the roof at +11.60. Together with the main wing it forms the L/T-shaped plan of the reference.
+- Entrance block 12.0 × 19.5 m in front of bays 9–12, ground floor plus a double-height hall up to the roof at +11.60.
 - Recessed glazed lobby with two double doors at x = 27.5, the entrance landing at +1.20, the ramp and stairs, and two rear steel exit doors at x = 4.5 and 70.5.
-- Window positions for every facade, including the hall windows and the end-wall corridor windows.
-- Roof exits (stair houses) at x = 33 and x = 66 and the ventilation chamber at x = 41. The stairs and the roof hatches sit under them.
+- Window positions for every facade. All 217 exterior windows open into a real room.
+- Roof exits (stair houses) at x = 33 and x = 66. The stairs and the roof hatches sit under them.
 
 ## Structure
 
@@ -39,71 +41,100 @@ All dimensions come from the Go generator (`tools/cmd/build`) and are reproduced
 | Exterior walls | 0.35 m (interior face), window reveals with plaster lining and painted sills |
 | Corridor | Central double-loaded corridor y 6.7–9.5, clear width 2.8 m (2.4 m at the pilasters), 0.2 m load-bearing walls |
 | Frame | 0.4 × 0.4 m pilasters every 6 m on both corridor walls |
-| Partitions | 0.12 m on the 3 m bay lines; rooms are 1, 2 or 3 bays wide |
+| Partitions | 0.12 m on the 3 m bay lines; most rooms are 2 bays (6 m) wide |
 | Slabs / ceilings | 0.3 m slabs, clear height 3.0 m; club hall 6.7 m |
 | Front rooms | y 0.35–6.5 (6.15 m deep), rear rooms y 9.7–15.85 |
 
 ## Floor programme
 
-Room numbers are on the door plates in the model and in `plans/rooms.csv`.
+212 spaces in total: 161 rooms and 51 en-suite bathrooms, 237 doors and openings. Room numbers are on the door plates in the model and in `plans/rooms.csv`.
 
-**Floor 1 (ground), 66 spaces**
-- *Entrance & reception (entrance block):* entrance vestibule with glazed double doors, reception hall, registration office with service windows and counter, receptionist workspace, information desk, security/guard room, visitor coatroom (counter), luggage storage (counter), waiting area. Public men's and women's restrooms and cleaning equipment storage are on the main corridor next to the hall.
-- *Administration (front, east):* secretary, director (padded door from the secretary), deputy director, chief administrator, accountant, HR, general administration, staff meeting room, head nurse, staff room, document archive, records storage.
-- *Medical (rear, east):* medical registration and medical archive, general practitioner, examination room, consultation room, nurse's office, treatment/injection room, blood sampling, small laboratory, first aid room, medical equipment storage, medical supplies storage, medical staff changing room and restroom.
-- *Dining & catering (west, separate service corridor closed by double doors):* dining hall (3 bays), food distribution counter with serving line, kitchen (hot shop), food preparation, vegetable preparation, dishwashing, dry food storage, refrigerated storage, kitchen staff changing room and restroom, staff dining room.
-- *Technical & service:* electrical distribution room, water/plumbing and heating substation, ventilation room, maintenance workshop, general storage, janitor's room, clean linen, dirty linen, staff changing room, utility room, waste collection room, lower elevator machine room.
+**Floor 1 (ground), 61 spaces, no guest bedrooms**
+- *Entrance & reception (entrance block):* vestibule with a carpet runner, reception hall and waiting area (sofa group, armchairs, palms, «ДОБРО ПОЖАЛОВАТЬ!» banner), registration with two clerks behind the service windows, information desk, guard room, visitor coatroom, luggage storage with racks of suitcases and bags.
+- *Phyto-bar and mineral water buvette* (50 m², south end of the entrance block): wooden bar counter with a samovar, shelves of herbal tea jars, a tiled buvette with three mineral water taps (Нарзан, Ессентуки № 17, Славяновская), five round cafe tables with four chairs each, palms and flowers.
+- *Administration:* only two offices, the chief physician (padded door) and administration/accounts.
+- *Spa (treatment) department, front east, 2-bay rooms of 34–36 m²:* massage room (two padded tables behind a curtain), physiotherapy (three curtained cubicles with couches and УВЧ devices), salt room and inhalatorium (salt-brick walls, six reclining chairs, three inhalation stations), hydrotherapy (two whirlpool baths, two showers with grab bars, Charcot shower console, rubber mats), therapeutic exercise hall (wall bars, large mirror, exercise bikes, mats, gym bench).
+- *Medical (rear east):* medical registration and archive, general practitioner, examination room, consultation room, head nurse, treatment room, blood sampling, laboratory, first aid, medical equipment and supplies stores, medical staff changing room and restroom. Every doctor's room has a desk with a chair for the doctor and one for the guest; examination, GP, consultation, treatment and first aid rooms have an examination couch with a screen.
+- *Dining & catering (west, own service corridor):* dining hall with eight tables in white cloths, four chairs each (32 seats, two sittings) and flowers on every table; kitchen, food preparation, distribution, dishwashing, dry and cold stores, staff changing room and restroom, staff dining room.
+- *Technical:* electrical room, plumbing/heating substation, ventilation room, workshop, stores, janitor's room, linen rooms, waste room, lower elevator machine room. Public men's and women's restrooms are next to the reception hall.
 
-**Floors 2–4 (patient accommodation), 47–49 spaces each**
-- 27 single and 63 double patient bedrooms in total. Each has beds, bedside tables, a wardrobe, a small desk or table, chairs, a lamp, a sink, curtains, a radiator and a picture.
-- Floor 2: two assisted-care rooms with hospital beds, a wheelchair, an IV stand, 1.1 m doors and en-suite accessible bathrooms, next to the elevator. A doctor-on-duty room. The **club hall / patient lounge** (double height) with stage, curtain, cinema rows, piano, TV corner and chess tables, plus its foyer and storeroom.
-- Floor 3: projection booth for the club hall, patient relaxation lounge (TV, sofa, books).
-- Floor 4: patient relaxation lounge; steel ladders and hatches to the two roof exits.
-- Every upper floor has a nursing station open to the corridor, a nurse's office, a treatment room, a housekeeping room, clean linen storage, dirty linen collection, an accessible bathroom (WC, bath, shower, grab bars), shared men's and women's bathrooms with WCs and showers, a staff office or medical storage, a utility room, and benches with plants in the stair lobbies.
+**Floors 2–4 (guest floors), 50–51 spaces each**
+- 51 guest rooms, 94 beds: 41 double rooms (29–31 m²), 8 single rooms (12–13 m²) and 2 assisted-care double rooms (29 m²). Every room has its own bathroom.
+- *Double room:* two made beds with bedspreads, bedside tables with lamps, a nurse call button at the head of each bed, a radio point at 1.3 m, two pictures, a wardrobe with a suitcase on top, coat hooks, a sitting corner by the window (two armchairs, a small table with flowers, a floor lamp), a TV on a cabinet, a writing desk with a lamp and a chair, a large rug, a flower stand, curtains and tulle.
+- *Single room:* made bed, bedside table with lamp, call button, radio, desk under the window, armchair, wardrobe, TV, rug.
+- *Assisted-care room (floor 2, next to the elevator):* two care beds with side rails and a 1.1 m wheelchair passage between them, call buttons, a table with two chairs, TV, wide wardrobe, a parked wheelchair, no rugs; 1.1 m entrance door.
+- *En-suite bathroom:* toilet with an L grab bar, washbasin with mirror and a vertical bar, shower with curtain, towel rail, bath mat. The accessible version (6.1 m², 0.9 m door) adds a level shower tray with a fold-down seat, a fold-down arm at the toilet and a call button.
+- *Lounge on every floor (36 m²):* TV corner with a sofa, two armchairs and a coffee table on a rug, a floor lamp, two game tables with full chair sets (two of chess, checkers, dominoes and backgammon on each floor), bookcases, a palm, a wall newspaper and a seascape.
+- *Club hall (floor 2, double height, 216 m²):* stage with curtain, piano, ten cinema rows; behind them a Russian billiards table with a cue rack, four game tables, two soft seating groups, bookcases, palms and flower stands.
+- Floor 3: doctors' room and projection booth. Floor 4: library and reading room; ladders and hatches to the two roof exits.
+- On every guest floor: nursing station open to the corridor (desk, phone, call indicator panel), nurse's office, treatment room, housekeeping room, linen rooms, an accessible bathroom (bathtub, toilet, shower with a stool, grab bars, call button), shared men's and women's WC and shower rooms.
 
-## Stairs, elevator and accessibility
+## Corridors and accessibility
 
-- **Three U-shaped staircases**, one module: 2 × 11 risers of 150 mm, 300 mm treads, 1.44 m flights, mid-landings and floor landings, terrazzo treads, painted walls. Wooden handrails at 0.9 m on steel balusters on the well side and a wall handrail on the other side. The main stair (bays 10–11, off the reception hall) is lit by the front windows. The west and east stairs (rear bays 1–2 and 22–23) lead to the existing rear exit doors.
-- **Service elevator (key-operated)**: concrete shaft 2.6 × 2.8 m (x 36.2–38.8, y 3.7–6.5) with a pit and headroom, guide rails, counterweight, ropes, overhead sheave, buffers, and a lower machine room with traction machine and controller.
-  - Cabin 1.9 × 2.2 × 2.2 m clear, wheelchair-sized, with laminate walls, handrail, plafond and control panel (buttons 1–4, STOP, CALL, key switch). It is parked on floor 1 with all doors **closed**.
-  - Each landing has a steel portal, a 1.1 m two-leaf door, a semicircular mechanical floor indicator, a call panel with a key switch and keyhole, and signs: «ЛИФТ СЛУЖЕБНЫЙ», «ТОЛЬКО ПО КЛЮЧУ», «Посторонним вход воспрещён», operating rules.
-  - The cabin, shaft and landing objects carry `locked: true`, `requires_key: "KEY_LIFT_SERVICE_01"`, `doors_closed: true`, `parked_level: 1`. The game must implement the key check; the model only provides the geometry and these flags.
-- **Accessibility:** 2.8 m corridors kept clear (equipment is wall-mounted; benches stand only in pilaster bays), 1.0–1.1 m doors to assisted rooms, the first aid room and accessible bathrooms, an accessible WC in every shared bathroom, grab bars, and turning space of at least 1.5 m in the accessible rooms. The exterior ramp leads to the level reception hall and on to the elevator.
+- Continuous wooden handrails at 0.9 m on both corridor walls of every floor. They stop only at doors, pilasters, open alcoves and wall equipment.
+- Soft seating in the free wall bays: sofas with wall lamps and pictures above, pairs of armchairs with a small table, benches with flower stands. On the guest floors seats are never placed directly opposite each other, so the corridor keeps its clear width.
+- Waiting seats outside the doctors' rooms on the ground floor; palms and flower stands at the stair and elevator lobbies.
+- Public WCs: grab bars inside every cubicle next to the toilet, bars beside the washbasins, a wide accessible cubicle with bars on both sides and a call button. The shower rooms have shower cubicles with seats, a bench and coat hooks.
+- Staff restrooms (catering and medical) have a toilet, washbasin with mirror, grab bar and towel rail.
+- 1.0–1.3 m doors to the spa rooms, the first aid room and accessible bathrooms; turning space of at least 1.5 m in accessible rooms. The exterior ramp leads to the level reception hall and on to the elevator.
+
+## Stairs and elevator
+
+- **Three U-shaped staircases**, one module: 2 × 11 risers of 150 mm, 300 mm treads, 1.44 m flights, terrazzo treads, wooden handrails on both sides. Each storey landing has a flower stand; the end stairs also have a bench.
+- **Passenger elevator, free to use (no key).** Concrete shaft 2.6 × 2.8 m with pit, guide rails, counterweight, ropes, overhead sheave and buffers; lower machine room with traction machine and controller.
+  - Cabin 1.9 × 2.2 × 2.2 m clear, 1000 kg / 12 persons, wheelchair- or bed-sized. Laminate walls, handrails on three walls, fold-down seat, plafond, control panel with buttons 1–4, STOP, dispatcher call and door open.
+  - The cabin waits at floor 1 **with the landing and cabin doors open**. On floors 2–4 the landing doors are closed.
+  - Each landing has a steel portal with a 1.2 m two-leaf door, a mechanical floor indicator, a call button at 1.0 m, a «ЛИФТ — для отдыхающих и персонала» sign and the operating rules.
+  - Properties on the cabin, shaft and landings: `locked: false`, `public: true`, `parked_level: 1`, `doors_open_level: 1`, `capacity_kg: 1000`, `capacity_persons: 12`.
 
 ## Doors
 
-There are 239 door leaves. Types: wood, wood with glazing, wired-glass double doors (stairs, dining hall, club hall), steel (technical, archives), padded (director), plus service counters, glazed partitions and projection ports. Every door sits in a frame with casings on both faces and a threshold. 58 leaves are left ajar at varied angles; the rest are closed. Locations are validated: each door connects two rooms through a shared wall, does not hit a pilaster, and has a clear swing zone (furniture placement checks against it). Door node `extras`: `door`, `open_angle_deg`, `hinge`, `opens_into`, `locked` (closed steel doors), `type`.
+244 door leaves in 237 openings. Types: wood, wood with glazing, wired-glass double doors (stairs, dining hall, lounges), steel (technical rooms), padded (chief physician), plus service counters, glazed partitions and projection ports. Every door sits in a frame with casings on both faces and a threshold. All leaves are modelled closed; the swing zone of every door is kept free of furniture, so a door can be opened in the engine. En-suite bathroom doors open into the bedroom. Door node `extras`: `door`, `open_angle_deg`, `hinge`, `opens_into`, `locked` (closed steel technical doors), `type`.
 
-## Lighting and atmosphere
+## Furnishing rules
 
-- 365 ceiling fixtures: fluorescent battens (offices, medical, kitchen, corridors), glass plafonds (patient rooms, bathrooms, stairs), bare bulbs (stores, technical rooms), pendants (club hall). Each has `light_state` = `on`, `flicker` or `broken`; the share of broken fixtures is higher in patient and technical areas. Reception and offices are brighter, corridors are dimmer.
-- 279 point lights for the working fixtures. Flickering ones have `flicker: true` and a looping energy keyframe stutter in the .blend; the keyframes are not exported, so engines should drive flicker from the property.
-- Weak overcast daylight (sun + sky) in the .blend.
-- Neglect is shown with textures and decals, without structural damage: ceiling water stains, hairline cracks, chipped paint, worn linoleum paths, dust on furniture, scattered papers in offices and the dining hall, some tipped chairs, a cleaning cart left in a corridor, empty medicine shelves, faded posters, a 1991 calendar, stopped clocks.
+Furniture is placed by recipes per room type (`tools/blender/sanatorium/furnish.py`) with these checks (`furnish_core.py`):
+
+- Floor items must lie inside the room and must not overlap each other, door swing zones, radiators, pilasters or open sides of the room.
+- Wall items (posters, pictures, schedules, calendars, evacuation plans, wall newspapers, warning signs, menus, switches, sockets, call buttons, grab bars...) must sit on a real wall, clear of openings and door plates, with at least 12 cm between neighbours. They never overlap or Z-fight. They are not hung behind tall furniture, and tall furniture is not placed in front of them.
+- Items on top of furniture (lamps, phones, papers, vases, TVs, games, suitcases, samovar) are only placed if the piece below exists, and only inside its top.
+- A table and its chairs are placed as one set: either the full set fits or none of it is placed.
+- Radiators stand on the floor under every window of a heated room. In the club hall they stand on the hall floor (on the stage at the stage end); the upper hall windows have none. Dry and cold food stores have no radiator.
+- `tools/blender/furnish_preview.py` runs all recipes without Blender, draws every footprint over the floor plans and lists the rejected placements.
+
+3,183 furniture items, 215 radiators, curtains and tulle in all furnished rooms.
+
+## Lighting
+
+- 526 ceiling fixtures: glass plafonds (guest rooms, corridors, offices, lounges, stairs), warm-white fluorescent battens (kitchen, medical, physiotherapy, exercise hall, registration), bulbs in stores and technical rooms, pendants in the club hall. Every fixture is `light_state: "on"`; there are no broken or flickering lamps.
+- One point light per fixture, warm colour (2700–3200 K), spaced about 3 m apart so that no corner stays dark. Corridors have a plafond every 3 m.
+- 64 extra warm lights from floor lamps and wall sconces. Table lamp shades glow.
+- Afternoon sun and sky in the .blend.
 
 ## Materials and textures (new)
 
-All textures are generated procedurally by `tools/blender/texgen_interior.py` and are tileable. They follow the existing convention: `_BaseColor`, `_Normal` (OpenGL, +Y), `_ORM` (R = AO, G = roughness, B = metallic), `_Roughness`, `_AO`, plus `_Metallic` for metal sets.
+All textures are generated procedurally by `tools/blender/texgen_interior.py` and are tileable. They follow the existing convention: `_BaseColor`, `_Normal` (OpenGL, +Y), `_ORM` (R = AO, G = roughness, B = metallic), `_Roughness`, `_AO`, plus `_Metallic` for metal sets. Surfaces are clean and freshly maintained: no cracks, water stains, mould or peeling; only light, even wear.
 
 | Set | Use |
 |---|---|
-| T_Paint_WallGreen / Blue / Beige / Peach | Oil-painted dado (1.5 m) with whitewashed upper wall and skirting: faded, chipped, scuffed, cracked, water-stained below the ceiling. The texture is mapped to storey height so the dado line is always at 1.5 m. |
-| T_Tile_WallWhite | 150 mm glazed tiles to 1.5 m with replaced, cracked and missing tiles (kitchen, WCs, medical) |
-| T_Wallpaper_Floral / Geometric | Soviet wallpapers with roll seams, lifted edges, sun fading, stains (offices, patient rooms) |
-| T_Plaster_AgedWhite, T_Ceiling_Paint | Aged plaster; ceilings with brush marks, flaking, water rings, mould spots |
-| T_Linoleum_WornBrown / Parquet | Worn red-brown linoleum and parquet-print linoleum with seams, wear paths and scratches |
-| T_Tile_FloorCeramic, T_Terrazzo_Old | 100 mm two-colour ceramic tiles; terrazzo with brass divider strips (reception, corridor, stairs) |
-| T_Wood_DoorDark, T_Wood_Furniture | Varnished dark door wood with worn handle zone and kick marks; furniture wood |
-| T_Metal_Painted, T_Metal_Rusty, T_Concrete_Interior, T_Glass_Dusty | Painted and rusty metal, shaft concrete, dusty and streaked window glass (alpha) |
-| T_Atlas_Furniture (4096 × 2048) | Fronts and details of all furniture and equipment: wardrobes, bookcases, filing and medicine cabinets, ZIL fridge, electrical panels, fire hose cabinet, elevator doors and panels, floor indicator, radiators, stoves, typewriter, TV, piano, textiles, and flat colour swatches |
-| T_Atlas_Decals (2048, alpha) | Tulle and curtains, health posters, eye chart, notice board, evacuation plan, paintings, wall carpet, calendar, schedules, plants, chair legs and balusters, papers, stains, all signs (exit, fire extinguisher, WC, lift, directions) |
-| T_Atlas_Signs (2048) | 198 door plates with room number and Russian name |
+| T_Paint_WallGreen / Blue / Beige / Peach | Oil-painted dado (1.5 m) with a light upper wall and skirting, mapped to storey height so the dado line is always at 1.5 m |
+| T_Tile_WallWhite | 150 mm glazed tiles to 1.5 m (bathrooms, kitchen, medical, hydrotherapy) |
+| T_Wallpaper_Floral / Geometric | Soviet wallpapers (offices, guest rooms, lounges, library) |
+| T_Salt_Brick | Salt blocks for the salt room |
+| T_Plaster_White, T_Ceiling_Paint | Plaster and ceilings |
+| T_Linoleum_Brown / Parquet | Red-brown linoleum and parquet-print linoleum |
+| T_Tile_FloorCeramic, T_Terrazzo | 100 mm two-colour ceramic tiles; terrazzo with brass divider strips (reception, ground corridor, stairs) |
+| T_Wood_DoorDark, T_Wood_Furniture | Varnished door wood; furniture wood |
+| T_Metal_Painted, T_Metal_DarkSteel, T_Concrete_Interior, T_Glass_Clear | Painted metal, dark steel (lift shaft), shaft concrete, clear window glass (alpha) |
+| T_Atlas_Furniture (4096 × 2048) | Fronts and details of all furniture and equipment: bedspreads, upholstery, chess/checkers/backgammon boards, dominoes, billiard cloth, suitcases, luggage shelves, physiotherapy and hydrotherapy panels, bar and buvette fronts, tea jars, tablecloth, medical curtains, call buttons and call panel, radio, wardrobes, bookcases, cabinets, fridge, elevator doors and panels, TV, piano, and colour swatches |
+| T_Atlas_Decals (2048, alpha) | Tulle and curtains, health and leisure posters, paintings and a wide seascape, wall carpet, calendar, daily and treatment schedules, phyto-bar menu, plants (palm, geranium, ferns), chair legs and balusters, papers, all signs |
+| T_Atlas_Signs (2048) | 152 door plates with room number and Russian name (wood-tone on guest floors, blue enamel elsewhere) |
 
 ## Custom properties (glTF `extras`)
 
-- Room empties `Room_<number>_<Name>`: `room_id`, `number`, `name_ru`, `name_en`, `department`, `area_m2`, `kind`.
-- Floor empties `Floor1_Ground` … `Floor4`: `level_z`.
-- Doors: see above. Elevator: see above. Fixtures: `light_state`, `fixture`. Stairs: `stair`, `risers_per_storey`, `riser_mm`, `tread_mm`, `flight_width_m`.
+- Room empties `Room_<number>_<Name>`: `room_id`, `number`, `name_ru`, `name_en`, `department`, `area_m2`, `kind`, `floor`, `floor_elevation_m`, `ceiling_elevation_m`.
+- Floor empties `Floor1_Ground` … `Floor4`: `floor`, `floor_elevation_m`, `ceiling_elevation_m`, `clear_height_m`, `elevation_axis`. Elevations are heights above the model origin. They are Blender Z in the .blend and Y in the Y-up GLB/FBX exports.
+- Doors and elevator: see above. Fixtures and lamps: `light_state`, `fixture`. Handrails: `handrail`, `height_m`. Stairs: `stair`, `risers_per_storey`, `riser_mm`, `tread_mm`, `flight_width_m`.
 
 ## Rebuilding
 
@@ -112,19 +143,20 @@ The pipeline runs with the Blender Python module (no Blender install needed) or 
 ```
 python -m venv .venv && .venv/bin/pip install bpy==4.5.4 pillow
 cd tools/blender
-../../.venv/bin/python texgen_interior.py                 # ~1 min, writes 22 texture sets into ../../textures
+../../.venv/bin/python texgen_interior.py                 # ~1 min, writes 23 texture sets into ../../textures
+../../.venv/bin/python furnish_preview.py --out /tmp/furn  # optional: furniture plans without Blender
 ../../.venv/bin/python build_sanatorium.py                # ~20 s: validates the plan, builds, saves .blend, exports GLB/FBX, writes plans/
 ../../.venv/bin/python render_interior.py --blend ../../export/blend/SovietSanatorium.blend --out ../../renders/interior
 # or: blender -b -P build_sanatorium.py
 ```
 
-On a headless Linux machine the `bpy` wheel needs `libSM`, `libICE`, `libXt` and `libglvnd` (GL/GLX/OpenGL/EGL). Renders use Cycles on the CPU.
+On a headless Linux machine the `bpy` wheel needs `libSM`, `libICE`, `libXt` and `libglvnd` (GL/GLX/OpenGL/EGL). Renders use Cycles on the CPU (32 samples, about 2.7 min per 1280 × 720 view on 8 cores).
 
-Source layout (`tools/blender/sanatorium/`): `params.py` (dimensions), `exterior.py` (window list from the Go generator), `plan.py` (all rooms and doors as data), `layout.py` (wall/door/window resolution and validation: overlaps, unreachable rooms, windows without a room, doors without a shared wall), `drawplan.py`, `texgen_*.py`, `architecture.py`, `doors.py`, `stairs.py`, `elevator.py`, `furniture.py`, `furnish*.py`, `lighting.py`.
+Source layout (`tools/blender/sanatorium/`): `params.py` (dimensions), `exterior.py` (window list from the Go generator), `plan.py` (all rooms and doors as data), `layout.py` (wall/door/window resolution and validation: overlaps, unreachable rooms, windows without a room, doors without a shared wall), `drawplan.py`, `texgen_*.py`, `architecture.py`, `doors.py`, `stairs.py`, `elevator.py`, `furniture.py` (modules), `furnish_core.py` (placement and checks), `furnish.py` (room recipes), `lighting.py`.
 
 ## Limitations
 
 - No lightmap UV set; generate one in the engine. Baked lighting is not included.
-- Wall decals and furniture use the shared atlases; small detail (chair legs, balusters, bed rails, wheels) is alpha-tested quads.
-- The elevator lock and the flicker of lamps are data flags; logic belongs to the engine.
+- Small detail (chair legs, balusters, bed rails, wheels, plants) uses alpha-tested quads from the shared atlases.
+- Doors are modelled closed and the elevator does not move; opening and travel belong to the engine (the swing zones and properties are prepared).
 - No separate reference image was provided, so the existing exterior model was used as the architectural reference.

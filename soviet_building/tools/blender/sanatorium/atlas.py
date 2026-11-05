@@ -30,6 +30,15 @@ FURN = [
     ("concrete", 128, 128), ("cardboard", 128, 128), ("aluminium", 128, 128), ("rust", 128, 128),
     ("fabric_curtain", 128, 128), ("velvet_red", 128, 128), ("emissive_white", 128, 128), ("bulb_off", 128, 128),
     ("switch", 128, 128), ("bucket_blue", 128, 128), ("enamel_pot", 128, 128), ("key_metal", 128, 128),
+    # v2: cozy guest rooms, spa department, games, luggage, phyto-bar
+    ("bedspread_a", 256, 256), ("bedspread_b", 256, 256), ("upholstery_beige", 256, 256),
+    ("upholstery_red", 256, 256), ("chessboard", 256, 256), ("checkers_board", 256, 256), ("backgammon", 256, 256),
+    ("billiard_cloth", 512, 256), ("suitcase_a", 256, 256), ("suitcase_b", 256, 256), ("luggage_shelf", 256, 256),
+    ("physio_panel", 256, 256), ("shower_console", 256, 256), ("bar_front", 512, 256), ("buvette_front", 256, 256),
+    ("tea_jars", 256, 256), ("tablecloth", 256, 256), ("curtain_med", 256, 256),
+    ("hydro_panel", 256, 128), ("gym_mat", 256, 128), ("travel_bag", 256, 128), ("call_panel", 256, 128),
+    ("leatherette_cream", 128, 128), ("dominoes", 128, 128), ("call_button", 128, 128), ("radio_front", 128, 128),
+    ("towel", 128, 128), ("brass", 128, 128), ("rubber_mat", 128, 128), ("bath_mat", 128, 128),
 ]
 
 DECAL_SIZE = 2048
@@ -41,33 +50,42 @@ DECAL = [
     ("calendar", 128, 192), ("schedule", 256, 192), ("menu_board", 256, 192), ("lift_rules", 192, 256),
     ("plant_1", 256, 256), ("plant_2", 256, 256), ("chair_legs_wood", 256, 256), ("chair_legs_tube", 256, 256),
     ("bed_head_tube", 256, 256), ("railing", 256, 256), ("wheel", 128, 128), ("papers_1", 256, 256),
-    ("papers_2", 256, 256), ("stain_floor", 256, 256), ("stain_wall", 256, 256), ("soot", 256, 256),
-    ("dust_sheet", 256, 256), ("vent_grille", 128, 128), ("socket", 64, 64), ("light_switch", 64, 96),
+    ("vent_grille", 128, 128), ("socket", 64, 64), ("light_switch", 64, 96),
     ("fire_sign", 128, 128), ("exit_sign", 256, 96), ("no_smoking", 128, 128), ("keep_out", 256, 96),
-    ("lift_sign", 256, 128), ("key_only", 256, 128), ("wc_m", 96, 96), ("wc_f", 96, 96), ("wc_access", 96, 96),
+    ("lift_sign", 256, 128), ("wc_m", 96, 96), ("wc_f", 96, 96), ("wc_access", 96, 96),
     ("silence", 256, 96), ("arrow_dining", 256, 64), ("arrow_medical", 256, 64), ("arrow_admin", 256, 64),
     ("arrow_reception", 256, 64), ("arrow_hall", 256, 64), ("arrow_stairs", 256, 64), ("arrow_lift", 256, 64),
-    ("roof_hatch", 256, 64), ("electro_warning", 128, 128), ("dirt_strip", 256, 64), ("frame_photo", 128, 160),
+    ("roof_hatch", 256, 64), ("electro_warning", 128, 128), ("frame_photo", 128, 160),
+    # v2
+    ("plant_3", 256, 384), ("plant_4", 256, 256), ("poster_7", 256, 384), ("poster_8", 256, 384),
+    ("poster_9", 256, 384), ("poster_10", 256, 384), ("painting_3", 512, 256), ("welcome_banner", 512, 96),
+    ("menu_phyto", 256, 192), ("buvette_sign", 256, 96), ("schedule_proc", 256, 192), ("arrow_spa", 256, 64),
 ]
 
 SIGN_SIZE = 2048
 SIGN_W, SIGN_H = 256, 80
 
 
-def pack(items, W, H):
-    """Shelf packer: tallest first, deterministic. Returns name -> (x0, y0, x1, y1) in pixels (y down)."""
+def pack(items, W, H, step=64):
+    """Skyline bottom-left packer: tallest first, deterministic.
+    Returns name -> (x0, y0, x1, y1) in pixels (y down)."""
     order = sorted(range(len(items)), key=lambda i: (-items[i][2], -items[i][1], i))
+    sky = [0] * (W // step)            # filled height per column of `step` px
     out = {}
-    x = y = shelf = 0
     for i in order:
         name, w, h = items[i]
-        if x + w > W:
-            x, y, shelf = 0, y + shelf, 0
-        if y + h > H:
+        nc = -(-w // step)
+        best = None
+        for c0 in range(0, len(sky) - nc + 1):
+            y = max(sky[c0:c0 + nc])
+            if y + h <= H and (best is None or y < best[0]):
+                best = (y, c0)
+        if best is None:
             raise ValueError(f"atlas overflow at {name}")
-        out[name] = (x, y, x + w, y + h)
-        x += w
-        shelf = max(shelf, h)
+        y, c0 = best
+        out[name] = (c0 * step, y, c0 * step + w, y + h)
+        for c in range(c0, c0 + nc):
+            sky[c] = y + h
     return out
 
 

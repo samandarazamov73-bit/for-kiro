@@ -6,11 +6,12 @@ from .params import *
 FONT = "/usr/share/fonts/google-noto-vf/NotoSans[wght].ttf"
 DEPT_COL = {
     "A_entrance": (236, 214, 160), "B_admin": (196, 214, 236), "C_medical": (196, 236, 214),
-    "D_catering": (240, 196, 170), "E_technical": (214, 206, 196), "P_patient": (232, 222, 240),
+    "D_catering": (240, 196, 170), "E_technical": (214, 206, 196), "P_patient": (232, 222, 240), "S_spa": (186, 226, 236),
     "CIRC": (246, 244, 236),
 }
 DEPT_EN = {"A_entrance": "Entrance & reception", "B_admin": "Administration", "C_medical": "Medical",
-           "D_catering": "Dining & catering", "E_technical": "Technical & service", "P_patient": "Patients",
+           "D_catering": "Dining & catering", "E_technical": "Technical & service", "P_patient": "Guests (rooms, leisure)",
+           "S_spa": "Spa treatments",
            "CIRC": "Circulation"}
 
 
@@ -163,7 +164,7 @@ def draw_level(layout, lvl, path, S=30, title=""):
         d.text((lx + 28, by), DEPT_EN[k], font=fs, fill=(0, 0, 0))
         lx += 34 + d.textlength(DEPT_EN[k], font=fs) + 18
     for col, t in (((150, 200, 235), "window / glazing"), ((240, 230, 120), "service counter"),
-                   ((200, 60, 60), "key-locked lift door")):
+                   ((200, 60, 60), "lift door")):
         d.rectangle([lx, by, lx + 22, by + 16], fill=col, outline=(0, 0, 0))
         d.text((lx + 28, by), t, font=fs, fill=(0, 0, 0))
         lx += 34 + d.textlength(t, font=fs) + 18
