@@ -1,0 +1,213 @@
+floor,number,id,name_ru,name_en,department,area_m2,windows,doors
+1,101,L0.EB_E1,"Камера хранения багажа","Luggage storage",A_entrance,10.2,1,2
+1,102,L0.EB_E2,"Гардероб","Visitor coatroom",A_entrance,11.2,1,2
+1,103,L0.EB_E3,"Регистратура","Registration / reception desk",A_entrance,22.8,2,1
+1,104,L0.EB_E5,"Справочное бюро","Information desk",A_entrance,11.2,1,1
+1,105,L0.EB_E6,"Комната охраны","Security / guard room",A_entrance,11.2,1,2
+1,106,L0.R0i,"Камера пищевых отходов","Waste collection room",E_technical,3.4,0,1
+1,107,L0.F0,"Заготовочный цех","Food preparation room",D_catering,15.9,1,2
+1,108,L0.R0,"Овощной цех","Vegetable preparation room",D_catering,12.0,1,1
+1,109,L0.F1,"Горячий цех (кухня)","Kitchen (hot shop)",D_catering,36.2,2,3
+1,110,L0.F3,"Раздаточная","Food distribution counter",D_catering,17.7,1,3
+1,111,L0.R3,"Кладовая сухих продуктов","Dry food storage",D_catering,9.9,1,1
+1,112,L0.R3i,"Охлаждаемая камера","Refrigerated storage",D_catering,7.5,0,2
+1,113,L0.R4i,"Санузел персонала пищеблока","Kitchen staff restroom",D_catering,4.2,0,1
+1,114,L0.R4,"Гардероб персонала пищеблока","Kitchen staff changing room",D_catering,13.0,1,1
+1,115,L0.F4,"Обеденный зал","Dining hall",D_catering,54.6,3,3
+1,116,L0.R5,"Столовая и комната отдыха персонала","Staff dining room and staff room",D_catering,17.7,1,1
+1,117,L0.R6i,"Электрощитовая","Electrical distribution room",E_technical,4.2,0,1
+1,118,L0.R6,"Водомерный узел и тепловой пункт","Water & plumbing service room",E_technical,13.0,1,1
+1,119,L0.F7,"Моечная столовой посуды","Dishwashing room",D_catering,17.7,1,2
+1,120,L0.R7,"Венткамера","Ventilation equipment room",E_technical,17.7,1,1
+1,121,L0.F8i,"Грязное бельё","Dirty linen collection",E_technical,4.2,0,1
+1,122,L0.R8i,"Кладовая хозяйственная","General storage room",E_technical,4.2,0,1
+1,123,L0.F8,"Бельевая (чистое бельё)","Clean linen storage",E_technical,13.0,1,1
+1,124,L0.R8,"Мастерская","Maintenance workshop",E_technical,13.0,1,1
+1,125,L0.R9,"Туалет мужской","Public men's restroom",A_entrance,17.7,1,1
+1,126,L0.R10,"Туалет женский","Public women's restroom",A_entrance,17.7,1,1
+1,127,L0.R11i,"Кладовая уборочного инвентаря","Cleaning equipment storage",A_entrance,4.2,0,1
+1,128,L0.R11,"Комната уборщиц","Janitor's room",E_technical,13.0,1,1
+1,129,L0.F12,"Машинное помещение лифта","Elevator machine room (lower)",E_technical,9.1,0,1
+1,130,L0.R12,"Медицинская регистратура","Medical registration office",C_medical,7.5,0,3
+1,131,L0.R12o,"Медицинский архив (картотека)","Medical archive",C_medical,9.9,1,1
+1,132,L0.F13,"Главный врач","Chief physician (director)",B_admin,17.7,1,1
+1,133,L0.R13,"Кабинет терапевта","General practitioner's office",C_medical,17.7,1,2
+1,134,L0.F14,"Администрация и бухгалтерия","Administration and accounts",B_admin,17.7,1,1
+1,135,L0.R14,"Смотровой кабинет","Medical examination room",C_medical,17.7,1,2
+1,136,L0.R15,"Кабинет врача-консультанта","Doctor's consultation room",C_medical,17.7,1,1
+1,137,L0.F15,"Массажный кабинет","Massage room",S_spa,36.2,2,1
+1,138,L0.R16,"Кабинет медицинских сестёр","Nurses' office (head nurse)",C_medical,17.7,1,1
+1,139,L0.R17,"Процедурный кабинет","Treatment and injection room",C_medical,17.7,1,1
+1,140,L0.F17,"Кабинет физиотерапии","Physiotherapy room",S_spa,36.2,2,1
+1,141,L0.R18,"Кабинет забора крови","Blood sampling room",C_medical,7.5,0,2
+1,142,L0.R18o,"Клиническая лаборатория","Small laboratory",C_medical,9.9,1,1
+1,143,L0.R19,"Медпункт (первая помощь)","First aid room",C_medical,17.7,1,1
+1,144,L0.F19,"Ингаляторий и соляная комната","Inhalation and salt room",S_spa,36.2,2,1
+1,145,L0.R20i,"Склад медикаментов","Medical supplies storage",C_medical,4.2,0,1
+1,146,L0.R20,"Склад медицинского оборудования","Medical equipment storage",C_medical,13.0,1,1
+1,147,L0.R21i,"Санузел медперсонала","Medical staff restroom",C_medical,4.2,0,1
+1,148,L0.R21,"Гардероб медперсонала","Medical staff changing room",C_medical,13.0,1,1
+1,149,L0.F21,"Водолечебница (лечебные ванны и души)","Hydrotherapy (baths and showers)",S_spa,36.2,2,1
+1,150,L0.F23,"Зал лечебной физкультуры (ЛФК)","Therapeutic exercise hall",S_spa,34.4,2,1
+1,151,L0.R24i,"Хозяйственная (уборочная)","Utility room",E_technical,3.4,0,1
+1,152,L0.R24,"Гардероб персонала","Staff changing room",E_technical,12.0,1,1
+1,,L0.C,"Коридор 1-го этажа","Ground floor corridor",CIRC,166.9,1,40
+1,,L0.EB_BAR,"Фитобар и бювет минеральных вод","Phyto-bar and mineral water buvette",S_spa,50.3,3,4
+1,,L0.EB_HALL,"Вестибюль и зона ожидания","Reception hall and waiting area",A_entrance,84.6,0,6
+1,,L0.EB_VEST,"Тамбур","Entrance vestibule",A_entrance,25.9,0,2
+1,,L0.SC,"Служебный коридор пищеблока","Catering service corridor",CIRC,40.9,1,10
+1,,L0.SHAFT,"Шахта лифта","Elevator shaft",CIRC,7.3,0,4
+1,,L0.STAIR1,"Лестница №1","Main staircase",CIRC,36.2,2,6
+1,,L0.STAIR2,"Лестница №2","West staircase",CIRC,36.2,7,5
+1,,L0.STAIR3,"Лестница №3","East staircase",CIRC,36.2,7,5
+2,201,L1.EB_HALL,"Клубный зал","Club hall",P_patient,215.7,14,3
+2,202,L1.R0,"Номер одноместный","Single room with bathroom",P_patient,12.0,1,2
+2,203,L1.F0,"Номер двухместный","Double room with bathroom",P_patient,29.3,2,2
+2,204,L1.F2,"Номер двухместный","Double room with bathroom",P_patient,31.1,2,2
+2,205,L1.R3,"Номер двухместный","Double room with bathroom",P_patient,31.1,2,2
+2,206,L1.F4,"Номер двухместный","Double room with bathroom",P_patient,31.1,2,2
+2,207,L1.R5,"Санузел и душевая мужские","Shared bathroom, men (WC + showers)",P_patient,17.7,1,1
+2,208,L1.R6,"Санузел и душевая женские","Shared bathroom, women (WC + showers)",P_patient,17.7,1,1
+2,209,L1.F6,"Номер двухместный","Double room with bathroom",P_patient,31.1,2,2
+2,210,L1.R7,"Холл отдыха","Lounge (TV, games, library corner)",P_patient,36.2,2,1
+2,211,L1.F8,"Номер одноместный","Single room with bathroom",P_patient,13.0,1,2
+2,212,L1.R9o,"Кабинет медсестры","Nurse's office",P_patient,9.9,1,1
+2,213,L1.R10,"Процедурный кабинет","Treatment room",P_patient,17.7,1,1
+2,214,L1.R11,"Комната сестры-хозяйки","Housekeeping room",P_patient,7.5,0,2
+2,215,L1.R11o,"Бельевая (чистое бельё)","Clean linen storage",P_patient,9.9,1,1
+2,216,L1.F12,"Кладовая клубного зала","Club hall storeroom",P_patient,9.1,0,1
+2,217,L1.R12,"Санузел для маломобильных","Accessible bathroom",P_patient,17.7,1,1
+2,218,L1.R13i,"Комната грязного белья","Dirty linen collection",P_patient,4.2,0,1
+2,219,L1.R13,"Дежурный врач","Doctor on duty",P_patient,13.0,1,1
+2,220,L1.F13,"Номер для маломобильных отдыхающих (2 места)","Assisted-care room (2 beds)",P_patient,29.4,2,2
+2,221,L1.R14,"Номер двухместный","Double room with bathroom",P_patient,31.1,2,2
+2,222,L1.F15,"Номер для маломобильных отдыхающих (2 места)","Assisted-care room (2 beds)",P_patient,29.4,2,2
+2,223,L1.R16,"Номер двухместный","Double room with bathroom",P_patient,31.1,2,2
+2,224,L1.F17,"Номер двухместный","Double room with bathroom",P_patient,31.1,2,2
+2,225,L1.R18,"Номер двухместный","Double room with bathroom",P_patient,31.1,2,2
+2,226,L1.F19,"Номер двухместный","Double room with bathroom",P_patient,31.1,2,2
+2,227,L1.R20,"Номер двухместный","Double room with bathroom",P_patient,31.1,2,2
+2,228,L1.F21,"Номер двухместный","Double room with bathroom",P_patient,31.1,2,2
+2,229,L1.F23,"Номер двухместный","Double room with bathroom",P_patient,29.3,2,2
+2,230,L1.R24i,"Кладовая уборочного инвентаря","Cleaning equipment storage",P_patient,3.4,0,1
+2,231,L1.R24,"Хозяйственная кладовая","Utility room",P_patient,12.0,1,1
+2,,L1.C,"Коридор 2-го этажа","Floor 2 corridor",CIRC,208.0,2,31
+2,,L1.F0b,"Санузел номера","En-suite bathroom",P_patient,4.6,0,1
+2,,L1.F13b,"Санузел номера (доступный)","Accessible en-suite bathroom",P_patient,6.1,0,1
+2,,L1.F15b,"Санузел номера (доступный)","Accessible en-suite bathroom",P_patient,6.1,0,1
+2,,L1.F17b,"Санузел номера","En-suite bathroom",P_patient,4.6,0,1
+2,,L1.F19b,"Санузел номера","En-suite bathroom",P_patient,4.6,0,1
+2,,L1.F21b,"Санузел номера","En-suite bathroom",P_patient,4.6,0,1
+2,,L1.F23b,"Санузел номера","En-suite bathroom",P_patient,4.6,0,1
+2,,L1.F2b,"Санузел номера","En-suite bathroom",P_patient,4.6,0,1
+2,,L1.F4b,"Санузел номера","En-suite bathroom",P_patient,4.6,0,1
+2,,L1.F6b,"Санузел номера","En-suite bathroom",P_patient,4.6,0,1
+2,,L1.F8b,"Санузел номера","En-suite bathroom",P_patient,4.2,0,1
+2,,L1.F9,"Фойе клубного зала","Club hall foyer",P_patient,18.3,0,1
+2,,L1.R0b,"Санузел номера","En-suite bathroom",P_patient,3.4,0,1
+2,,L1.R14b,"Санузел номера","En-suite bathroom",P_patient,4.6,0,1
+2,,L1.R16b,"Санузел номера","En-suite bathroom",P_patient,4.6,0,1
+2,,L1.R18b,"Санузел номера","En-suite bathroom",P_patient,4.6,0,1
+2,,L1.R20b,"Санузел номера","En-suite bathroom",P_patient,4.6,0,1
+2,,L1.R3b,"Санузел номера","En-suite bathroom",P_patient,4.6,0,1
+2,,L1.R9,"Пост дежурной медсестры","Nursing station",P_patient,8.1,0,1
+3,301,L2.R0,"Номер одноместный","Single room with bathroom",P_patient,12.0,1,2
+3,302,L2.F0,"Номер двухместный","Double room with bathroom",P_patient,29.3,2,2
+3,303,L2.F2,"Номер двухместный","Double room with bathroom",P_patient,31.1,2,2
+3,304,L2.R3,"Номер двухместный","Double room with bathroom",P_patient,31.1,2,2
+3,305,L2.F4,"Номер двухместный","Double room with bathroom",P_patient,31.1,2,2
+3,306,L2.R5,"Санузел и душевая мужские","Shared bathroom, men (WC + showers)",P_patient,17.7,1,1
+3,307,L2.R6,"Санузел и душевая женские","Shared bathroom, women (WC + showers)",P_patient,17.7,1,1
+3,308,L2.F6,"Номер двухместный","Double room with bathroom",P_patient,31.1,2,2
+3,309,L2.R7,"Холл отдыха","Lounge (TV, games, library corner)",P_patient,36.2,2,1
+3,310,L2.F8,"Номер одноместный","Single room with bathroom",P_patient,13.0,1,2
+3,311,L2.F9,"Кинопроекционная","Projection booth (club hall)",P_patient,17.7,0,1
+3,312,L2.R9o,"Кабинет медсестры","Nurse's office",P_patient,9.9,1,1
+3,313,L2.R10,"Процедурный кабинет","Treatment room",P_patient,17.7,1,1
+3,314,L2.R11,"Комната сестры-хозяйки","Housekeeping room",P_patient,7.5,0,2
+3,315,L2.R11o,"Бельевая (чистое бельё)","Clean linen storage",P_patient,9.9,1,1
+3,316,L2.R12,"Санузел для маломобильных","Accessible bathroom",P_patient,17.7,1,1
+3,317,L2.F13,"Ординаторская","Doctors' and staff office",P_patient,27.2,1,1
+3,318,L2.R13i,"Комната грязного белья","Dirty linen collection",P_patient,4.2,0,1
+3,319,L2.R13,"Медицинская кладовая","Medical storage",P_patient,13.0,1,1
+3,320,L2.F14,"Номер одноместный","Single room with bathroom",P_patient,13.0,1,2
+3,321,L2.R14,"Номер двухместный","Double room with bathroom",P_patient,31.1,2,2
+3,322,L2.F15,"Номер двухместный","Double room with bathroom",P_patient,31.1,2,2
+3,323,L2.R16,"Номер двухместный","Double room with bathroom",P_patient,31.1,2,2
+3,324,L2.F17,"Номер двухместный","Double room with bathroom",P_patient,31.1,2,2
+3,325,L2.R18,"Номер двухместный","Double room with bathroom",P_patient,31.1,2,2
+3,326,L2.F19,"Номер двухместный","Double room with bathroom",P_patient,31.1,2,2
+3,327,L2.R20,"Номер двухместный","Double room with bathroom",P_patient,31.1,2,2
+3,328,L2.F21,"Номер двухместный","Double room with bathroom",P_patient,31.1,2,2
+3,329,L2.F23,"Номер двухместный","Double room with bathroom",P_patient,29.3,2,2
+3,330,L2.R24i,"Кладовая уборочного инвентаря","Cleaning equipment storage",P_patient,3.4,0,1
+3,331,L2.R24,"Хозяйственная кладовая","Utility room",P_patient,12.0,1,1
+3,,L2.C,"Коридор 3-го этажа","Floor 3 corridor",CIRC,208.0,2,33
+3,,L2.F0b,"Санузел номера","En-suite bathroom",P_patient,4.6,0,1
+3,,L2.F14b,"Санузел номера","En-suite bathroom",P_patient,4.2,0,1
+3,,L2.F15b,"Санузел номера","En-suite bathroom",P_patient,4.6,0,1
+3,,L2.F17b,"Санузел номера","En-suite bathroom",P_patient,4.6,0,1
+3,,L2.F19b,"Санузел номера","En-suite bathroom",P_patient,4.6,0,1
+3,,L2.F21b,"Санузел номера","En-suite bathroom",P_patient,4.6,0,1
+3,,L2.F23b,"Санузел номера","En-suite bathroom",P_patient,4.6,0,1
+3,,L2.F2b,"Санузел номера","En-suite bathroom",P_patient,4.6,0,1
+3,,L2.F4b,"Санузел номера","En-suite bathroom",P_patient,4.6,0,1
+3,,L2.F6b,"Санузел номера","En-suite bathroom",P_patient,4.6,0,1
+3,,L2.F8b,"Санузел номера","En-suite bathroom",P_patient,4.2,0,1
+3,,L2.R0b,"Санузел номера","En-suite bathroom",P_patient,3.4,0,1
+3,,L2.R14b,"Санузел номера","En-suite bathroom",P_patient,4.6,0,1
+3,,L2.R16b,"Санузел номера","En-suite bathroom",P_patient,4.6,0,1
+3,,L2.R18b,"Санузел номера","En-suite bathroom",P_patient,4.6,0,1
+3,,L2.R20b,"Санузел номера","En-suite bathroom",P_patient,4.6,0,1
+3,,L2.R3b,"Санузел номера","En-suite bathroom",P_patient,4.6,0,1
+3,,L2.R9,"Пост дежурной медсестры","Nursing station",P_patient,8.1,0,1
+4,401,L3.R0,"Номер одноместный","Single room with bathroom",P_patient,12.0,1,2
+4,402,L3.F0,"Номер двухместный","Double room with bathroom",P_patient,29.3,2,2
+4,403,L3.F2,"Номер двухместный","Double room with bathroom",P_patient,31.1,2,2
+4,404,L3.R3,"Номер двухместный","Double room with bathroom",P_patient,31.1,2,2
+4,405,L3.F4,"Номер двухместный","Double room with bathroom",P_patient,31.1,2,2
+4,406,L3.R5,"Санузел и душевая мужские","Shared bathroom, men (WC + showers)",P_patient,17.7,1,1
+4,407,L3.R6,"Санузел и душевая женские","Shared bathroom, women (WC + showers)",P_patient,17.7,1,1
+4,408,L3.F6,"Номер двухместный","Double room with bathroom",P_patient,31.1,2,2
+4,409,L3.R7,"Холл отдыха","Lounge (TV, games, library corner)",P_patient,36.2,2,1
+4,410,L3.F8,"Номер одноместный","Single room with bathroom",P_patient,13.0,1,2
+4,411,L3.F9,"Библиотека и читальня","Library and reading room",P_patient,17.7,1,1
+4,412,L3.R9o,"Кабинет медсестры","Nurse's office",P_patient,9.9,1,1
+4,413,L3.R10,"Процедурный кабинет","Treatment room",P_patient,17.7,1,1
+4,414,L3.R11,"Комната сестры-хозяйки","Housekeeping room",P_patient,7.5,0,2
+4,415,L3.R11o,"Бельевая (чистое бельё)","Clean linen storage",P_patient,9.9,1,1
+4,416,L3.R12,"Санузел для маломобильных","Accessible bathroom",P_patient,17.7,1,1
+4,417,L3.F13,"Ординаторская","Doctors' and staff office",P_patient,27.2,2,1
+4,418,L3.R13i,"Комната грязного белья","Dirty linen collection",P_patient,4.2,0,1
+4,419,L3.R13,"Медицинская кладовая","Medical storage",P_patient,13.0,1,1
+4,420,L3.F14,"Номер одноместный","Single room with bathroom",P_patient,13.0,1,2
+4,421,L3.R14,"Номер двухместный","Double room with bathroom",P_patient,31.1,2,2
+4,422,L3.F15,"Номер двухместный","Double room with bathroom",P_patient,31.1,2,2
+4,423,L3.R16,"Номер двухместный","Double room with bathroom",P_patient,31.1,2,2
+4,424,L3.F17,"Номер двухместный","Double room with bathroom",P_patient,31.1,2,2
+4,425,L3.R18,"Номер двухместный","Double room with bathroom",P_patient,31.1,2,2
+4,426,L3.F19,"Номер двухместный","Double room with bathroom",P_patient,31.1,2,2
+4,427,L3.R20,"Номер двухместный","Double room with bathroom",P_patient,31.1,2,2
+4,428,L3.F21,"Номер двухместный","Double room with bathroom",P_patient,31.1,2,2
+4,429,L3.F23,"Номер двухместный","Double room with bathroom",P_patient,29.3,2,2
+4,430,L3.R24i,"Кладовая уборочного инвентаря","Cleaning equipment storage",P_patient,3.4,0,1
+4,431,L3.R24,"Хозяйственная кладовая","Utility room",P_patient,12.0,1,1
+4,,L3.C,"Коридор 4-го этажа","Floor 4 corridor",CIRC,208.0,2,33
+4,,L3.F0b,"Санузел номера","En-suite bathroom",P_patient,4.6,0,1
+4,,L3.F14b,"Санузел номера","En-suite bathroom",P_patient,4.2,0,1
+4,,L3.F15b,"Санузел номера","En-suite bathroom",P_patient,4.6,0,1
+4,,L3.F17b,"Санузел номера","En-suite bathroom",P_patient,4.6,0,1
+4,,L3.F19b,"Санузел номера","En-suite bathroom",P_patient,4.6,0,1
+4,,L3.F21b,"Санузел номера","En-suite bathroom",P_patient,4.6,0,1
+4,,L3.F23b,"Санузел номера","En-suite bathroom",P_patient,4.6,0,1
+4,,L3.F2b,"Санузел номера","En-suite bathroom",P_patient,4.6,0,1
+4,,L3.F4b,"Санузел номера","En-suite bathroom",P_patient,4.6,0,1
+4,,L3.F6b,"Санузел номера","En-suite bathroom",P_patient,4.6,0,1
+4,,L3.F8b,"Санузел номера","En-suite bathroom",P_patient,4.2,0,1
+4,,L3.R0b,"Санузел номера","En-suite bathroom",P_patient,3.4,0,1
+4,,L3.R14b,"Санузел номера","En-suite bathroom",P_patient,4.6,0,1
+4,,L3.R16b,"Санузел номера","En-suite bathroom",P_patient,4.6,0,1
+4,,L3.R18b,"Санузел номера","En-suite bathroom",P_patient,4.6,0,1
+4,,L3.R20b,"Санузел номера","En-suite bathroom",P_patient,4.6,0,1
+4,,L3.R3b,"Санузел номера","En-suite bathroom",P_patient,4.6,0,1
+4,,L3.R9,"Пост дежурной медсестры","Nursing station",P_patient,8.1,0,1

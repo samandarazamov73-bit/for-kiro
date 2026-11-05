@@ -1,0 +1,215 @@
+extends Node3D
+## Lamps per room: one OmniLight3D per working fixture (from level.json), the fixture's glowing glass
+## switched with it, table lamps, floor lamps and wall sconces of the room. Broken lamps never light;
+## failing lamps flicker (with a crackle). Guest rooms and offices are dark when you arrive, corridors
+## and stairs are lit. Only the nearest lights cast shadows (updated a few times a second).
+
+var game
+var groups := {}          # room -> {on, lights: [], fixtures: [], glows: [], flick: []}
+var flickers := []        # {light, mesh, room, next, phase, n}
+var shadowed := []
+var all_lights := []
+var off_mat: StandardMaterial3D
+var buzz_players := []
+var fluo := []            # {pos, room, light}
+var _t := 0.0
+var _shadow_t := 0.0
+
+const ON_KINDS := ["corridor", "corridor_patient", "service_corridor", "hall", "vestibule", "stair_main", "stair_end",
+	"nurse_post", "foyer", "phytobar"]
+const SHADOWS := 8
+const SHADOW_DIST := 15.0
+
+
+func _group(room: String) -> Dictionary:
+	if not groups.has(room):
+		groups[room] = {"on": false, "lights": [], "fixtures": [], "glows": [], "has_switch": false}
+	return groups[room]
+
+
+func setup(g) -> void:
+	game = g
+	off_mat = StandardMaterial3D.new()
+	off_mat.albedo_color = Color(0.58, 0.57, 0.54)
+	off_mat.roughness = 0.3
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 1982
+	for f in game.level["fixtures"]:
+		var grp: Dictionary = _group(f["room"])
+		var mesh: Node = game.node(f["name"])
+		var kind: String = f["kind"]
+		if mesh != null:
+			grp["fixtures" if kind != "lamp" else "glows"].append(mesh)
+		if f["state"] == "broken":
+			continue
+		var l := OmniLight3D.new()
+		var col: Array = f["color"]
+		l.light_color = Color(col[0], col[1], col[2])
+		var e: float = f["energy"]
+		match kind:
+			"pendant":
+				l.light_energy = e / 40.0
+				l.omni_range = 11.0
+			"bulb":
+				l.light_energy = e / 40.0
+				l.omni_range = 5.0
+			"lamp":
+				l.light_energy = e / 26.0
+				l.omni_range = 4.0
+			_:
+				l.light_energy = e / 44.0
+				l.omni_range = 7.0
+		if kind == "fluo":
+			l.light_color = Color(col[0], col[1], col[2]).lerp(Color(0.86, 0.95, 1.0), 0.35)
+		l.omni_attenuation = 1.0
+		l.light_specular = 0.35
+		l.light_volumetric_fog_energy = 0.5
+		l.shadow_enabled = false
+		l.omni_shadow_mode = OmniLight3D.SHADOW_CUBE
+		l.shadow_bias = 0.08
+		l.distance_fade_enabled = true
+		l.distance_fade_begin = 24.0
+		l.distance_fade_length = 6.0
+		l.distance_fade_shadow = 14.0
+		add_child(l)
+		l.global_position = game._v3(f["pos"])
+		l.set_meta("base_energy", l.light_energy)
+		grp["lights"].append(l)
+		all_lights.append({"light": l, "room": f["room"]})
+		if f["state"] == "flicker":
+			flickers.append({"light": l, "mesh": mesh, "room": f["room"], "next": rng.randf_range(0.5, 6.0),
+				"phase": 0, "n": 0})
+		if kind == "fluo":
+			fluo.append({"pos": l.global_position, "room": f["room"], "light": l})
+	for gl in game.level["glows"]:
+		var m: Node = game.node(gl["name"])
+		if m != null:
+			_group(gl["room"])["glows"].append(m)
+	for s in game.level["switches"]:
+		_group(s["room"])["has_switch"] = true
+	for room in groups:
+		var r: Dictionary = game.rooms.get(room, {})
+		var on: bool = r.get("kind", "") in ON_KINDS
+		if not groups[room]["has_switch"] and not on:
+			on = r.get("kind", "") in ["lift", "shaft"]
+		# someone left the light on in a few guest rooms
+		if r.get("kind", "") in ["suite_double", "suite_single"] and rng.randf() < 0.07:
+			on = true
+		set_room(room, on, false)
+	for i in 4:
+		var p := AudioStreamPlayer3D.new()
+		p.stream = game.sfx("fluo_buzz_loop", true)
+		p.volume_db = -22.0
+		p.unit_size = 1.5
+		p.max_distance = 9.0
+		p.bus = "World"
+		add_child(p)
+		buzz_players.append(p)
+	game.stats["lights"] = all_lights.size()
+	game.stats["flickering"] = flickers.size()
+
+
+func is_on(room: String) -> bool:
+	return groups.has(room) and groups[room]["on"]
+
+
+func working_count(room: String) -> int:
+	return groups[room]["lights"].size() if groups.has(room) else 0
+
+
+func set_room(room: String, on: bool, _sound := true) -> void:
+	var grp := _group(room)
+	grp["on"] = on
+	for l in grp["lights"]:
+		l.visible = on
+		if not on:
+			l.shadow_enabled = false
+	for m in grp["fixtures"]:
+		if m is GeometryInstance3D:
+			m.material_override = null if on else off_mat
+	for m in grp["glows"]:
+		if m is GeometryInstance3D:
+			m.material_override = null if on else off_mat
+	# broken fixtures keep their dark glass (baked into the mesh)
+
+
+func _process(dt: float) -> void:
+	_t += dt
+	var pp: Vector3 = game.player.global_position if game.player else Vector3.ZERO
+	for f in flickers:
+		var l: OmniLight3D = f["light"]
+		if not is_on(f["room"]):
+			continue
+		f["next"] -= dt
+		if f["next"] > 0.0:
+			continue
+		var base: float = l.get_meta("base_energy")
+		if f["phase"] == 0:
+			# start a burst of 1..5 short drop-outs
+			f["n"] = randi_range(1, 5)
+			f["phase"] = 1
+		if f["phase"] == 1:
+			l.light_energy = base * randf_range(0.0, 0.15)
+			if f["mesh"] is GeometryInstance3D:
+				f["mesh"].material_override = off_mat
+			f["phase"] = 2
+			f["next"] = randf_range(0.03, 0.14)
+			if pp.distance_to(l.global_position) < 14.0 and randf() < 0.6:
+				game.play_at("flicker", l.global_position, -10.0, randf_range(0.8, 1.3), 14.0)
+		else:
+			l.light_energy = base
+			if f["mesh"] is GeometryInstance3D:
+				f["mesh"].material_override = null
+			f["n"] -= 1
+			if f["n"] > 0:
+				f["phase"] = 1
+				f["next"] = randf_range(0.04, 0.25)
+			else:
+				f["phase"] = 0
+				f["next"] = randf_range(1.5, 9.0)
+	_shadow_t -= dt
+	if _shadow_t <= 0.0:
+		_shadow_t = 0.25
+		_update_shadows(pp)
+		_update_buzz(pp)
+
+
+func _update_shadows(pp: Vector3) -> void:
+	var cand := []
+	for e in all_lights:
+		var l: OmniLight3D = e["light"]
+		if not l.visible:
+			continue
+		var d: float = pp.distance_to(l.global_position)
+		if d < SHADOW_DIST and abs(l.global_position.y - pp.y) < 4.5:
+			cand.append([d, l])
+	cand.sort_custom(func(a, b): return a[0] < b[0])
+	var want := {}
+	for i in min(SHADOWS, cand.size()):
+		want[cand[i][1]] = true
+	for l in shadowed:
+		if is_instance_valid(l) and not want.has(l):
+			l.shadow_enabled = false
+	shadowed = []
+	for l in want:
+		l.shadow_enabled = true
+		shadowed.append(l)
+
+
+func _update_buzz(pp: Vector3) -> void:
+	var cand := []
+	for f in fluo:
+		if not is_on(f["room"]):
+			continue
+		var d: float = pp.distance_to(f["pos"])
+		if d < 9.0:
+			cand.append([d, f["pos"]])
+	cand.sort_custom(func(a, b): return a[0] < b[0])
+	for i in buzz_players.size():
+		var p: AudioStreamPlayer3D = buzz_players[i]
+		if i < cand.size():
+			p.global_position = cand[i][1]
+			if not p.playing:
+				p.play(randf() * 0.9)
+		elif p.playing:
+			p.stop()

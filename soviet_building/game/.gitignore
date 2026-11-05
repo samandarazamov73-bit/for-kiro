@@ -1,0 +1,5 @@
+# Godot cache and textures extracted from the GLB on first import (regenerated automatically)
+.godot/
+assets/sanatorium_*
+export_presets.cfg
+/build/

@@ -3,3 +3,4 @@ __pycache__/
 *.pyc
 tools/bin/
 soviet_building/tools/bin/
+*.blend1
