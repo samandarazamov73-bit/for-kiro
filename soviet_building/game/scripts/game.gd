@@ -12,6 +12,7 @@ const Critters = preload("res://scripts/critters.gd")
 const Ambience = preload("res://scripts/ambience.gd")
 const Hud = preload("res://scripts/hud.gd")
 const Switch = preload("res://scripts/switch.gd")
+const Quality = preload("res://scripts/quality.gd")
 
 const L_WORLD := 1
 const L_PLAYER := 2
@@ -33,6 +34,9 @@ var lights: Node3D
 var lift: Node3D
 var critters: Node3D
 var ambience: Node3D
+var quality: Node
+var env: Environment
+var moon: DirectionalLight3D
 var door_groups := []
 var rng := RandomNumberGenerator.new()
 var stats := {}
@@ -41,6 +45,7 @@ var stats := {}
 func _ready() -> void:
 	rng.seed = 1975
 	_setup_input()
+	_fit_window_macos()
 	_setup_audio_buses()
 	level = JSON.parse_string(FileAccess.get_file_as_string("res://assets/level.json"))
 	var t0 := Time.get_ticks_msec()
@@ -78,6 +83,9 @@ func _ready() -> void:
 	ambience = Ambience.new()
 	add_child(ambience)
 	ambience.setup(self)
+	quality = Quality.new()
+	add_child(quality)
+	quality.setup(self)
 	stats["load_ms"] = Time.get_ticks_msec() - t0
 	print("Sanatorium loaded in %d ms: %s" % [stats["load_ms"], str(stats)])
 	var args := OS.get_cmdline_user_args()
@@ -154,7 +162,7 @@ func _setup_input() -> void:
 		"drive_forward": [KEY_W, KEY_UP], "drive_back": [KEY_S, KEY_DOWN], "turn_left": [KEY_A, KEY_LEFT],
 		"turn_right": [KEY_D, KEY_RIGHT], "interact": [KEY_E, KEY_F], "horn": [KEY_H],
 		"speed_up": [KEY_EQUAL, KEY_KP_ADD, KEY_R], "speed_down": [KEY_MINUS, KEY_KP_SUBTRACT, KEY_Q],
-		"pause": [KEY_ESCAPE], "fullscreen": [KEY_F11],
+		"pause": [KEY_ESCAPE], "fullscreen": [KEY_F11], "quality": [KEY_G, KEY_F2],
 	}
 	for a in keys:
 		if not InputMap.has_action(a):
@@ -163,6 +171,12 @@ func _setup_input() -> void:
 			var ev := InputEventKey.new()
 			ev.physical_keycode = k
 			InputMap.action_add_event(a, ev)
+	# Mac: Ctrl+Cmd+F is the system full-screen shortcut (F11 there shows the desktop)
+	var mac_fs := InputEventKey.new()
+	mac_fs.physical_keycode = KEY_F
+	mac_fs.ctrl_pressed = true
+	mac_fs.meta_pressed = true
+	InputMap.action_add_event("fullscreen", mac_fs)
 	var joy := {"interact": JOY_BUTTON_A, "horn": JOY_BUTTON_Y, "speed_up": JOY_BUTTON_RIGHT_SHOULDER,
 		"speed_down": JOY_BUTTON_LEFT_SHOULDER, "pause": JOY_BUTTON_START}
 	for a in joy:
@@ -203,7 +217,7 @@ func _setup_audio_buses() -> void:
 
 
 func _setup_environment() -> void:
-	var env := Environment.new()
+	env = Environment.new()
 	var sky := Sky.new()
 	var sm := ProceduralSkyMaterial.new()
 	sm.sky_top_color = Color(0.02, 0.03, 0.06)
@@ -240,7 +254,7 @@ func _setup_environment() -> void:
 	var we := WorldEnvironment.new()
 	we.environment = env
 	add_child(we)
-	var moon := DirectionalLight3D.new()
+	moon = DirectionalLight3D.new()
 	moon.light_color = Color(0.55, 0.62, 0.8)
 	moon.light_energy = 0.35
 	moon.shadow_enabled = true
@@ -421,7 +435,24 @@ func _build_switches() -> void:
 	stats["switches"] = n
 
 
+## On a Retina Mac the 1280x720 window from project.godot opens at half size: make it about
+## 80 % of the screen instead (the UI scales with it, see window/stretch in project.godot).
+func _fit_window_macos() -> void:
+	if not OS.has_feature("macos") or DisplayServer.get_name() == "headless":
+		return
+	var w := get_window()
+	if w.mode != Window.MODE_WINDOWED:
+		return
+	var area: Rect2i = DisplayServer.screen_get_usable_rect(w.current_screen)
+	var width := int(min(area.size.x * 0.8, area.size.y * 0.8 * 16.0 / 9.0))
+	w.size = Vector2i(width, int(width * 9.0 / 16.0))
+	w.position = area.position + (area.size - w.size) / 2
+
+
 func _unhandled_input(event: InputEvent) -> void:
+	if event.is_action_pressed("quality") and quality:
+		quality.cycle()
+		return
 	if event.is_action_pressed("fullscreen"):
 		var w := get_window()
 		w.mode = Window.MODE_WINDOWED if w.mode == Window.MODE_FULLSCREEN else Window.MODE_FULLSCREEN

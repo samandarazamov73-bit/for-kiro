@@ -18,6 +18,7 @@ var _shadow_t := 0.0
 const ON_KINDS := ["corridor", "corridor_patient", "service_corridor", "hall", "vestibule", "stair_main", "stair_end",
 	"nurse_post", "foyer", "phytobar"]
 const SHADOWS := 8
+var max_shadows := SHADOWS   # set by quality.gd
 const SHADOW_DIST := 15.0
 
 
@@ -185,7 +186,7 @@ func _update_shadows(pp: Vector3) -> void:
 			cand.append([d, l])
 	cand.sort_custom(func(a, b): return a[0] < b[0])
 	var want := {}
-	for i in min(SHADOWS, cand.size()):
+	for i in min(max_shadows, cand.size()):
 		want[cand[i][1]] = true
 	for l in shadowed:
 		if is_instance_valid(l) and not want.has(l):

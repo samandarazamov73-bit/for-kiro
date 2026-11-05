@@ -95,7 +95,7 @@ func _label(size: int, col: Color) -> Label:
 	return l
 
 
-const CONTROLS := "W / S — вперёд / назад     A / D — поворот\nМышь — смотреть по сторонам     E или ЛКМ — открыть, нажать\nКолесо мыши или Q / R — скорость коляски (1–5)     H — гудок\nF11 — полный экран     Esc — пауза"
+const CONTROLS := "W / S — вперёд / назад     A / D — поворот\nМышь — смотреть по сторонам     E или ЛКМ — открыть, нажать\nКолесо мыши или Q / R — скорость коляски (1–5)     H — гудок\nF11 (Mac: Ctrl+Cmd+F) — полный экран     G — качество графики     Esc — пауза"
 
 
 func _panel(title: String, body: String) -> PanelContainer:

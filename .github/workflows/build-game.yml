@@ -41,14 +41,16 @@ jobs:
           godot --headless --path . -- --test | tee test.log
           grep -q "ALL TESTS PASSED" test.log
 
-      - name: Export Windows and Linux builds
+      - name: Export Windows, Linux and macOS builds
         working-directory: soviet_building/game
         run: |
           mkdir -p ../out/Sanatorium-Windows ../out/Sanatorium-Linux
           godot --headless --path . --export-release "Windows"
           godot --headless --path . --export-release "Linux"
+          godot --headless --path . --export-release "macOS"
           test -s ../out/Sanatorium-Windows/Sanatorium.exe
           test -s ../out/Sanatorium-Linux/Sanatorium.x86_64
+          test -s ../out/Sanatorium-macOS.zip
 
       - name: Package
         working-directory: soviet_building/out
@@ -58,7 +60,69 @@ jobs:
           chmod +x Sanatorium-Linux/Sanatorium.x86_64
           zip -qr -9 Sanatorium-Windows.zip Sanatorium-Windows
           zip -qr -9 Sanatorium-Linux.zip Sanatorium-Linux
+          cp "../game/КАК ИГРАТЬ.txt" .
+          zip -q Sanatorium-macOS.zip "КАК ИГРАТЬ.txt"
           ls -la *.zip
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: builds
+          path: soviet_building/out/*.zip
+          retention-days: 7
+
+  # Apple M1 runner: launch the exported Mac app, then run the tests and an FPS benchmark from source.
+  mac-m1-check:
+    needs: build
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: builds
+          path: builds
+
+      - name: Launch the exported Mac app
+        run: |
+          uname -m
+          system_profiler SPDisplaysDataType | head -20
+          mkdir app && cd app && unzip -q ../builds/Sanatorium-macOS.zip
+          codesign --verify --deep --verbose=2 Санаторий.app
+          lipo -archs Санаторий.app/Contents/MacOS/Санаторий
+          ./Санаторий.app/Contents/MacOS/Санаторий --quit-after 1200 2>&1 | tee ../app.log
+          grep -q "Sanatorium loaded" ../app.log
+          ! grep -q "SCRIPT ERROR" ../app.log
+
+      - name: Run tests and benchmark from source
+        working-directory: soviet_building/game
+        run: |
+          curl -sSL -o godot.zip "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_macos.universal.zip"
+          unzip -q godot.zip && rm godot.zip
+          G="$PWD/Godot.app/Contents/MacOS/Godot"
+          "$G" --headless --path . --import
+          "$G" --path . -- --test | tee ../../test.log
+          grep -q "ALL TESTS PASSED" ../../test.log
+          mkdir -p ../../bench
+          "$G" --path . -- --bench --out="$PWD/../../bench" | tee ../../bench/bench.log
+          grep BENCH ../../bench/bench.log
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mac-m1-check
+          path: |
+            app.log
+            test.log
+            bench/
+
+  release:
+    needs: [build, mac-m1-check]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: builds
+          path: builds
 
       - name: Upload to release
         uses: softprops/action-gh-release@v2
@@ -66,5 +130,6 @@ jobs:
           tag_name: ${{ env.RELEASE_TAG }}
           overwrite_files: true
           files: |
-            soviet_building/out/Sanatorium-Windows.zip
-            soviet_building/out/Sanatorium-Linux.zip
+            builds/Sanatorium-Windows.zip
+            builds/Sanatorium-Linux.zip
+            builds/Sanatorium-macOS.zip

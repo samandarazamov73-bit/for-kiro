@@ -1,6 +1,7 @@
 extends Node
 ## Automated checks (run: godot --headless --path . -- --test) and screenshots
 ## (run with a display: godot --path . -- --shots --out=/abs/dir). Exits with code 0 when all checks pass.
+## FPS per graphics quality level, with a display: godot --path . -- --bench --out=/abs/dir
 
 var game
 var fails := 0
@@ -11,6 +12,8 @@ func _ready() -> void:
 	var args := OS.get_cmdline_user_args()
 	if "--shots" in args:
 		_shots.call_deferred(args)
+	elif "--bench" in args:
+		_bench.call_deferred(args)
 	else:
 		_run.call_deferred()
 
@@ -234,4 +237,47 @@ func _shots(args: Array) -> void:
 		print("SHOT ", name)
 		for room in s[2]:
 			game.lights.set_room(room, false)
+	get_tree().quit(0)
+
+
+# ------------------------------------------------------------------------------- benchmark
+const BENCH_SPOTS := ["hall", "corridor_floor2", "double_room", "club_hall"]
+
+
+func _bench(args: Array) -> void:
+	var out: String = "/tmp"
+	for a in args:
+		if String(a).begins_with("--out="):
+			out = String(a).substr(6)
+	DisplayServer.window_set_vsync_mode(DisplayServer.VSYNC_DISABLED)
+	Engine.max_fps = 0
+	var pl = game.player
+	game.hud.room_label.visible = false
+	game.lights.set_room("L1.F2", true)
+	game.lights.set_room("L1.EB_HALL", true)
+	print("BENCH window %s, driver %s, GPU %s" % [str(get_window().size), RenderingServer.get_current_rendering_driver_name(),
+		RenderingServer.get_video_adapter_name()])
+	for q in [0, 1, 2]:
+		game.quality.level = q
+		game.quality.apply()
+		var line := "BENCH %-8s 3D scale %.2f:" % [game.quality.NAMES[q], get_viewport().scaling_3d_scale]
+		var total := 0.0
+		for name in BENCH_SPOTS:
+			var s: Array = SHOTS[name]
+			var eye := Vector3(s[0].x, s[0].z, -s[0].y)
+			var tgt := Vector3(s[1].x, s[1].z, -s[1].y)
+			var dir := tgt - eye
+			place(Vector3(eye.x, eye.y - pl.EYE, eye.z), atan2(-dir.x, -dir.z))
+			pl.look_pitch = atan2(dir.y, Vector2(dir.x, dir.z).length())
+			pl.look_yaw = 0.0
+			await wait(2.0)
+			var f0 := Engine.get_frames_drawn()
+			var t0 := Time.get_ticks_usec()
+			await wait(4.0)
+			var fps := float(Engine.get_frames_drawn() - f0) / ((Time.get_ticks_usec() - t0) / 1e6)
+			total += fps
+			line += "  %s %.1f" % [name, fps]
+			if name == "hall":
+				get_viewport().get_texture().get_image().save_png(out.path_join("bench_q%d_%s.png" % [q, name]))
+		print(line + "  | average %.1f fps" % (total / BENCH_SPOTS.size()))
 	get_tree().quit(0)

@@ -15,6 +15,8 @@ config/icon="res://icon.svg"
 
 window/size/viewport_width=1280
 window/size/viewport_height=720
+window/stretch/mode.macos="canvas_items"
+window/stretch/aspect.macos="expand"
 
 [gui]
 
@@ -27,6 +29,8 @@ common/physics_ticks_per_second=60
 
 [rendering]
 
+rendering_device/driver.macos="metal"
+textures/vram_compression/import_etc2_astc=true
 renderer/rendering_method="forward_plus"
 occlusion_culling/use_occlusion_culling=true
 anti_aliasing/quality/screen_space_aa=1
