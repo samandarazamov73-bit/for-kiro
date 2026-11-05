@@ -88,12 +88,15 @@ jobs:
           system_profiler SPDisplaysDataType | head -20
           mkdir app && cd app
           ditto -x -k ../builds/Sanatorium-macOS.zip .
-          rm -rf Санаторий.app/Contents/_CodeSignature
-          codesign --remove-signature Санаторий.app/Contents/MacOS/Санаторий || true
-          codesign --force --sign - --timestamp=none Санаторий.app
-          codesign --verify --deep --strict --verbose=2 Санаторий.app
-          lipo -archs Санаторий.app/Contents/MacOS/Санаторий
-          mkdir ../mac && ditto -c -k --sequesterRsrc --keepParent Санаторий.app ../mac/Sanatorium-macOS.zip
+          find . | head -20
+          plutil -lint Sanatorium.app/Contents/Info.plist
+          rm -rf Sanatorium.app/Contents/_CodeSignature
+          codesign -dv Sanatorium.app/Contents/MacOS/Sanatorium || true
+          codesign --force --sign - --timestamp=none Sanatorium.app/Contents/MacOS/Sanatorium
+          codesign --force --sign - --timestamp=none Sanatorium.app
+          codesign --verify --deep --strict --verbose=2 Sanatorium.app
+          lipo -archs Sanatorium.app/Contents/MacOS/Sanatorium
+          mkdir ../mac && ditto -c -k --sequesterRsrc --keepParent Sanatorium.app ../mac/Sanatorium-macOS.zip
           cd ../mac && cp "../soviet_building/game/КАК ИГРАТЬ.txt" . && zip -q Sanatorium-macOS.zip "КАК ИГРАТЬ.txt" && rm "КАК ИГРАТЬ.txt"
           ls -la
 
@@ -101,8 +104,8 @@ jobs:
         run: |
           mkdir check && cd check
           ditto -x -k ../mac/Sanatorium-macOS.zip .
-          codesign --verify --deep --strict --verbose=2 Санаторий.app
-          ./Санаторий.app/Contents/MacOS/Санаторий --quit-after 1200 2>&1 | tee ../app.log
+          codesign --verify --deep --strict --verbose=2 Sanatorium.app
+          ./Sanatorium.app/Contents/MacOS/Sanatorium --quit-after 1200 2>&1 | tee ../app.log
           grep -q "Sanatorium loaded" ../app.log
           ! grep -q "SCRIPT ERROR" ../app.log
 

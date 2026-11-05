@@ -441,6 +441,7 @@ func _fit_window_macos() -> void:
 	if not OS.has_feature("macos") or DisplayServer.get_name() == "headless":
 		return
 	var w := get_window()
+	w.title = "Санаторий"   # the Mac bundle is named "Sanatorium" (project.godot config/name.macos)
 	if w.mode != Window.MODE_WINDOWED:
 		return
 	var area: Rect2i = DisplayServer.screen_get_usable_rect(w.current_screen)
