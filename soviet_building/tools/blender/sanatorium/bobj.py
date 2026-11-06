@@ -1,5 +1,8 @@
 """bpy object helpers (collections, empties, mesh objects, shared module meshes)."""
+import math
+import bmesh
 import bpy
+from mathutils import Vector
 from .materials import NAME
 
 _coll = {}
@@ -55,6 +58,56 @@ def mesh_object(mb, mats, coll, parent=None, name=None, props=None):
     return ob
 
 
+def soften(me, width=0.01, segments=2, bevel_above=50.0, smooth_below=50.0):
+    """Takes the "made of boxes" look off a module: welds its loose quads, rounds every sharp edge with a
+    small two-segment bevel, and sets area-weighted normals, so large faces stay flat while the rounded
+    edges and the sides of cylinders shade smoothly. The silhouette and footprint stay the same."""
+    bm = bmesh.new()
+    bm.from_mesh(me)
+    bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=1e-5)
+    lim = math.radians(bevel_above)
+
+    def wide(f):            # thin parts (legs, rails, hooks, buttons) stay as they are: rounding them shows
+        return min(e.calc_length() for e in f.edges) > 0.035     # no difference and only costs triangles
+    edges = [e for e in bm.edges if e.is_manifold and e.calc_face_angle(0.0) > lim
+             and all(wide(f) for f in e.link_faces)]
+    if edges and width > 0.0:
+        bmesh.ops.bevel(bm, geom=edges, offset=width, offset_type="OFFSET", segments=segments, profile=0.5,
+                        affect="EDGES", clamp_overlap=True, loop_slide=True)
+    bmesh.ops.dissolve_degenerate(bm, dist=1e-6, edges=bm.edges)
+    bm.to_mesh(me)
+    bm.free()
+    me.validate(clean_customdata=False)
+    me.update()
+    if not me.polygons:
+        return
+    me.shade_smooth()
+    cos_lim = math.cos(math.radians(smooth_below))
+    around = [[] for _ in me.vertices]
+    for p in me.polygons:
+        n, a = p.normal.copy(), p.area
+        for vi in p.vertices:
+            around[vi].append((n, a))
+    normals = [None] * len(me.loops)
+    for p in me.polygons:
+        n0 = p.normal
+        for li in p.loop_indices:
+            acc = Vector((0.0, 0.0, 0.0))
+            for n, a in around[me.loops[li].vertex_index]:
+                if n.dot(n0) > cos_lim:
+                    acc += n * a
+            normals[li] = acc.normalized() if acc.length > 1e-12 else n0.copy()
+    me.normals_split_custom_set(normals)
+
+
+def soften_width(mb):
+    """Bevel size from the module's size: about a centimetre on furniture, less on small things."""
+    if not mb.v:
+        return 0.0
+    ext = max(max(v[k] for v in mb.v) - min(v[k] for v in mb.v) for k in range(3))
+    return min(0.012, max(0.003, ext * 0.02))
+
+
 class Library:
     """Shared module meshes (linked duplicates -> glTF mesh instancing)."""
 
@@ -66,8 +119,12 @@ class Library:
     def get(self, key, builder):
         if key not in self.meshes:
             mb = builder()
-            self.unique_tris += mb.tris()
-            self.meshes[key] = (mesh_data(mb, self.mats, "SM_" + key), mb.tris())
+            me = mesh_data(mb, self.mats, "SM_" + key)
+            # modules shaped from round cross-sections (lofts) only need the smooth normals
+            soften(me, 0.0 if getattr(mb, "smooth_only", False) else soften_width(mb))
+            tris = sum(len(p.vertices) - 2 for p in me.polygons)
+            self.unique_tris += tris
+            self.meshes[key] = (me, tris)
         return self.meshes[key]
 
     def place(self, key, builder, coll, name, loc, rot_z=0.0, parent=None, props=None, scale=None):

@@ -61,6 +61,65 @@ def cyl_r(mb, cx, cy, z0, z1, r, region, sides=8, top=True):
     mb.cyl(cx, cy, z0, z1, r, A, sides=sides, top=top, bottom=False, region=region)
 
 
+# ------------------------------------------------------------- rounded shapes from cross-sections
+def oval(cx, cy, rx, ry, z, n=20, p=2.0):
+    """Superellipse ring, counter-clockwise seen from above: p=2 is an ellipse, larger p a rounded rectangle."""
+    pts = []
+    for k in range(n):
+        t = 2 * math.pi * k / n
+        c, s_ = math.cos(t), math.sin(t)
+        pts.append((cx + rx * math.copysign(abs(c) ** (2 / p), c), cy + ry * math.copysign(abs(s_) ** (2 / p), s_), z))
+    return pts
+
+
+def loft(mb, rings, region, inward=False, mat=A):
+    """Skin through rings of equal size, from the first to the last; faces outward (or inward, for the
+    inside of a bowl). UVs fill the atlas region."""
+    u0, v0, u1, v1 = FURN_UV[region]
+    n, m = len(rings[0]), len(rings) - 1
+    for j in range(m):
+        a, b = rings[j], rings[j + 1]
+        for k in range(n):
+            k2 = (k + 1) % n
+            pts = [a[k], a[k2], b[k2], b[k]]
+            uvs = [(u0 + (u1 - u0) * k / n, v0 + (v1 - v0) * j / m), (u0 + (u1 - u0) * (k + 1) / n, v0 + (v1 - v0) * j / m),
+                   (u0 + (u1 - u0) * (k + 1) / n, v0 + (v1 - v0) * (j + 1) / m), (u0 + (u1 - u0) * k / n, v0 + (v1 - v0) * (j + 1) / m)]
+            if inward:
+                pts, uvs = pts[::-1], uvs[::-1]
+            mb.poly(pts, uvs, mat)
+
+
+def band(mb, outer, inner, region, want=(0, 0, 1), mat=A):
+    """Flat or sloping strip between two rings (a rim, a seat, a lip)."""
+    u0, v0, u1, v1 = FURN_UV[region]
+    n = len(outer)
+    for k in range(n):
+        k2 = (k + 1) % n
+        mb.poly_n([outer[k], outer[k2], inner[k2], inner[k]],
+                  [(u0 + (u1 - u0) * k / n, v0), (u0 + (u1 - u0) * (k + 1) / n, v0),
+                   (u0 + (u1 - u0) * (k + 1) / n, v1), (u0 + (u1 - u0) * k / n, v1)], mat, want)
+
+
+def cap(mb, ring, region, want=(0, 0, 1), mat=A):
+    u0, v0, u1, v1 = FURN_UV[region]
+    xs, ys = [p[0] for p in ring], [p[1] for p in ring]
+    x0, x1, y0, y1 = min(xs), max(xs), min(ys), max(ys)
+    uvs = [(u0 + (u1 - u0) * (p[0] - x0) / max(x1 - x0, 1e-6), v0 + (v1 - v0) * (p[1] - y0) / max(y1 - y0, 1e-6)) for p in ring]
+    mb.poly_n(list(ring), uvs, mat, want)
+
+
+def pot(mb, cx, cy, z0, h, r, region):
+    """Flower pot: tapering sides, a rolled rim, dark earth inside."""
+    n = 16
+    rings = [oval(cx, cy, r * 0.74, r * 0.74, z0, n), oval(cx, cy, r * 0.94, r * 0.94, z0 + h * 0.8, n),
+             oval(cx, cy, r * 1.06, r * 1.06, z0 + h * 0.84, n), oval(cx, cy, r * 1.06, r * 1.06, z0 + h, n)]
+    loft(mb, rings, region)
+    inner = oval(cx, cy, r * 0.92, r * 0.92, z0 + h, n)
+    band(mb, rings[-1], inner, region)
+    cap(mb, oval(cx, cy, r * 0.92, r * 0.92, z0 + h - 0.03, n), "soil")
+    loft(mb, [oval(cx, cy, r * 0.92, r * 0.92, z0 + h - 0.03, n), inner], region, inward=True)
+
+
 # ----------------------------------------------------------------------------- bedroom
 def bed(style="blanket"):
     mb = MB("bed")
@@ -203,9 +262,23 @@ def table_lamp():
 
 
 def sink_wall():
+    """Wall-hung washbasin with a rounded front and a real bowl, a swan-neck tap and the mirror above."""
     mb = MB("sink")
-    bx(mb, -0.25, 0.25, -0.2, 0.2, 0.68, 0.85, {"*": "porcelain"}, ("-x", "+x", "-y", "+z", "-z"))
-    bx(mb, -0.02, 0.02, 0.1, 0.2, 0.85, 1.0, {"*": "chrome"}, ("-x", "-y", "+z"))
+    mb.smooth_only = True
+    n = 14
+    out = [oval(0, 0.02, 0.19, 0.15, 0.68, n, 3.2), oval(0, 0.0, 0.24, 0.19, 0.8, n, 3.6),
+           oval(0, 0.0, 0.25, 0.2, 0.85, n, 3.6)]
+    loft(mb, out, "porcelain")
+    cap(mb, out[0], "porcelain", want=(0, 0, -1))
+    inner = oval(0, -0.015, 0.205, 0.15, 0.85, n, 3.0)
+    band(mb, out[-1], inner, "porcelain")
+    drain = oval(0, -0.02, 0.07, 0.05, 0.76, n, 2.4)
+    loft(mb, [drain, oval(0, -0.018, 0.16, 0.115, 0.82, n, 2.8), inner], "porcelain", inward=True)
+    cap(mb, drain, "porcelain")
+    mb.tube_region([(0, 0.17, 0.85), (0, 0.17, 0.95), (0, 0.15, 0.985), (0, 0.11, 0.99), (0, 0.08, 0.96)], 0.011,
+                   "chrome", 8, False, True)
+    for x in (-0.06, 0.06):
+        cyl_r(mb, x, 0.165, 0.85, 0.88, 0.016, "chrome")
     quad(mb, [(-0.25, 0.195, 1.15), (0.25, 0.195, 1.15), (0.25, 0.195, 1.65), (-0.25, 0.195, 1.65)], "mirror",
          want=(0, -1, 0))
     return mb
@@ -261,9 +334,38 @@ def typewriter():
 
 
 def telephone():
+    """Soviet desk telephone: a body with a sloping front carrying the rotary dial, and the handset with
+    its ear and mouth cups lying on the cradle."""
     mb = MB("telephone")
-    bx(mb, -0.11, 0.11, -0.1, 0.1, 0, 0.08, {"*": "black_plastic", "+z": "telephone"}, ("-x", "+x", "-y", "+y", "+z"))
-    bx(mb, -0.12, 0.12, 0.02, 0.08, 0.08, 0.12, {"*": "black_plastic"}, ("-x", "+x", "-y", "+y", "+z"))
+    mb.smooth_only = True
+    base = oval(0, 0, 0.11, 0.1, 0.0, 16, 5.0)
+    top = oval(0, 0.03, 0.092, 0.058, 0.085, 16, 5.0)
+    loft(mb, [base, oval(0, 0.005, 0.108, 0.094, 0.02, 16, 5.0), top], "black_plastic")
+    cap(mb, top, "black_plastic")
+    # rotary dial on the sloping front, facing up and forward
+    c0 = (0.0, -0.062, 0.05)
+    nrm = (0.0, -0.62, 0.78)
+    up = (0.0, 0.78, 0.62)
+    disc = []
+    for z in (0.0, 0.007):
+        ring = []
+        for k in range(16):
+            t = 2 * math.pi * k / 16
+            ring.append(tuple(c0[i] + nrm[i] * z + (math.cos(t) * 0.04 if i == 0 else 0.0) + up[i] * math.sin(t) * 0.04
+                              for i in range(3)))
+        disc.append(ring)
+    loft(mb, disc, "chrome")
+    cap(mb, disc[1], "telephone", want=nrm)
+    # handset: a bent grip between two cups, resting on two cradle prongs
+    for x in (-0.06, 0.06):
+        bx(mb, x - 0.012, x + 0.012, 0.015, 0.045, 0.085, 0.1, {"*": "black_plastic"}, ("-x", "+x", "-y", "+y", "+z"))
+    mb.tube_region([(-0.112, 0.03, 0.104), (-0.088, 0.03, 0.12), (0.088, 0.03, 0.12), (0.112, 0.03, 0.104)], 0.013,
+                   "black_plastic", 8, True, True)
+    for x in (-0.112, 0.112):
+        loft(mb, [oval(x, 0.03, 0.022, 0.022, 0.088, 12), oval(x, 0.03, 0.027, 0.027, 0.1, 12),
+                  oval(x, 0.03, 0.026, 0.026, 0.108, 12)], "black_plastic")
+        cap(mb, oval(x, 0.03, 0.026, 0.026, 0.108, 12), "black_plastic")
+        cap(mb, oval(x, 0.03, 0.022, 0.022, 0.088, 12), "black_plastic", want=(0, 0, -1))
     return mb
 
 
@@ -326,7 +428,7 @@ def seat_row(n=3):
 
 def plant(kind=1, h=1.1):
     mb = MB("plant")
-    cyl_r(mb, 0, 0, 0, 0.32, 0.16, "cardboard" if kind == 1 else "red_paint", sides=6)
+    pot(mb, 0, 0, 0, 0.32, 0.16, "cardboard" if kind == 1 else "red_paint")
     for a in (0.0, math.pi / 2):
         c, s = math.cos(a) * 0.4, math.sin(a) * 0.4
         quad(mb, [(-c, -s, 0.25), (c, s, 0.25), (c, s, 0.25 + h), (-c, -s, 0.25 + h)], f"plant_{kind}", DEC)
@@ -562,10 +664,28 @@ def bin_():
 
 
 def toilet():
+    """Floor-standing WC pan with a rounded bowl and rim, a seat, and a close-coupled cistern."""
     mb = MB("toilet")
-    bx(mb, -0.18, 0.18, -0.3, 0.06, 0, 0.4, {"*": "porcelain"}, ("-x", "+x", "-y", "+z"))
-    bx(mb, -0.19, 0.19, -0.3, 0.02, 0.4, 0.43, {"*": "metal_white"}, ("-x", "+x", "-y", "+z"))      # seat
-    bx(mb, -0.2, 0.2, 0.06, 0.24, 0.0, 0.78, {"*": "porcelain"}, ("-x", "+x", "-y", "+z"))        # close-coupled cistern
+    mb.smooth_only = True
+    n = 14
+    out = [oval(0, -0.07, 0.1, 0.13, 0.0, n, 2.6), oval(0, -0.085, 0.13, 0.17, 0.14, n, 2.4),
+           oval(0, -0.1, 0.165, 0.2, 0.3, n, 2.3), oval(0, -0.105, 0.172, 0.205, 0.38, n, 2.3)]
+    loft(mb, out, "porcelain")
+    inner = oval(0, -0.115, 0.13, 0.155, 0.38, n, 2.3)
+    band(mb, out[-1], inner, "porcelain")
+    loft(mb, [oval(0, -0.13, 0.06, 0.07, 0.22, n, 2.2), oval(0, -0.12, 0.11, 0.13, 0.33, n, 2.3), inner], "porcelain",
+         inward=True)
+    cap(mb, oval(0, -0.13, 0.06, 0.07, 0.22, n, 2.2), "glass_dark" if "glass_dark" in FURN_UV else "porcelain")
+    # seat: a flat ring lying on the rim
+    so0, so1 = oval(0, -0.105, 0.178, 0.212, 0.385, n, 2.3), oval(0, -0.105, 0.178, 0.212, 0.41, n, 2.3)
+    si0, si1 = oval(0, -0.115, 0.122, 0.148, 0.385, n, 2.3), oval(0, -0.115, 0.122, 0.148, 0.41, n, 2.3)
+    loft(mb, [so0, so1], "metal_white")
+    band(mb, so1, si1, "metal_white")
+    loft(mb, [si0, si1], "metal_white", inward=True)
+    bx(mb, -0.12, 0.12, 0.04, 0.12, 0.0, 0.36, {"*": "porcelain"}, ("-x", "+x", "-y"))           # foot to the wall
+    bx(mb, -0.19, 0.19, 0.06, 0.24, 0.36, 0.78, {"*": "porcelain"}, ("-x", "+x", "-y", "+z"))    # cistern
+    bx(mb, -0.2, 0.2, 0.05, 0.24, 0.78, 0.8, {"*": "porcelain"}, ("-x", "+x", "-y", "+z", "-z"))  # cistern lid
+    bx(mb, -0.02, 0.02, 0.13, 0.17, 0.8, 0.815, {"*": "chrome"}, ("-x", "+x", "-y", "+y", "+z"))  # flush button
     return mb
 
 
@@ -787,11 +907,9 @@ def bed_made(spread="bedspread_a", w=0.9, d=2.0):
     back at the head, one plump pillow."""
     mb = MB("bed_made")
     bx(mb, -w / 2, w / 2, -d / 2, d / 2, 0.12, 0.36, {"*": "wood_plain"}, ("-x", "+x", "-y", "+y"))
-    bx(mb, -w / 2 + 0.02, w / 2 - 0.02, -d / 2 + 0.03, d / 2 - 0.05, 0.36, 0.53, {"*": "linen_white"},
-       ("-x", "+x", "-y", "+y", "+z"))
+    cushion(mb, -w / 2 + 0.02, w / 2 - 0.02, -d / 2 + 0.03, d / 2 - 0.05, 0.36, 0.53, "linen_white", 0.045)
     y1 = d / 2 - 0.62                      # spread ends below the pillow, sheet folded over it
-    bx(mb, -w / 2 - 0.015, w / 2 + 0.015, -d / 2 + 0.01, y1, 0.30, 0.565, {"*": spread},
-       ("-x", "+x", "-y", "+y", "+z"))
+    cushion(mb, -w / 2 - 0.015, w / 2 + 0.015, -d / 2 + 0.01, y1, 0.30, 0.565, spread, 0.05)
     bx(mb, -w / 2 + 0.005, w / 2 - 0.005, y1, y1 + 0.14, 0.53, 0.55, {"*": "linen_white"}, ("+y", "+z"))
     cushion(mb, -0.33, 0.33, d / 2 - 0.47, d / 2 - 0.08, 0.53, 0.68, "pillow", 0.05, ("+y",))
     bx(mb, -w / 2 - 0.02, w / 2 + 0.02, d / 2 - 0.04, d / 2, 0.0, 0.98, {"*": "wood_plain"},
@@ -806,11 +924,9 @@ def bed_hospital_made():
     mb = MB("bed_hosp")
     w, d = 0.95, 2.05
     bx(mb, -w / 2, w / 2, -d / 2, d / 2, 0.45, 0.52, {"*": "metal_white"}, ("-x", "+x", "-y", "+y", "-z"))
-    bx(mb, -w / 2 + 0.03, w / 2 - 0.03, -d / 2 + 0.05, d / 2 - 0.05, 0.52, 0.66, {"*": "linen_white"},
-       ("-x", "+x", "-y", "+y", "+z"))
+    cushion(mb, -w / 2 + 0.03, w / 2 - 0.03, -d / 2 + 0.05, d / 2 - 0.05, 0.52, 0.66, "linen_white", 0.045)
     y1 = d / 2 - 0.62
-    bx(mb, -w / 2 + 0.01, w / 2 - 0.01, -d / 2 + 0.04, y1, 0.47, 0.675, {"*": "bedspread_b"},
-       ("-x", "+x", "-y", "+y", "+z"))
+    cushion(mb, -w / 2 + 0.01, w / 2 - 0.01, -d / 2 + 0.04, y1, 0.47, 0.675, "bedspread_b", 0.05)
     cushion(mb, -0.33, 0.33, d / 2 - 0.47, d / 2 - 0.1, 0.66, 0.79, "pillow", 0.05, ("+y",))
     for y, h in ((d / 2 - 0.02, 1.05), (-d / 2 + 0.02, 0.85)):
         quad(mb, [(-w / 2, y, 0.0), (w / 2, y, 0.0), (w / 2, y, h), (-w / 2, y, h)], "bed_head_tube", DEC)
@@ -964,7 +1080,11 @@ def table_cloth(w=1.2, d=0.8, h=0.75):
 
 def vase():
     mb = MB("vase")
-    cyl_r(mb, 0, 0, 0, 0.16, 0.05, "porcelain", sides=6)
+    mb.smooth_only = True
+    n = 12
+    loft(mb, [oval(0, 0, 0.035, 0.035, 0.0, n), oval(0, 0, 0.055, 0.055, 0.06, n), oval(0, 0, 0.045, 0.045, 0.12, n),
+              oval(0, 0, 0.028, 0.028, 0.15, n), oval(0, 0, 0.034, 0.034, 0.165, n)], "porcelain")
+    cap(mb, oval(0, 0, 0.034, 0.034, 0.165, n), "soil")
     for a in (0.0, math.pi / 2):
         c, s = math.cos(a) * 0.13, math.sin(a) * 0.13
         quad(mb, [(-c, -s, 0.1), (c, s, 0.1), (c, s, 0.38), (-c, -s, 0.38)], "plant_4", DEC)
@@ -1197,7 +1317,7 @@ def plant_stand():
     mb = MB("plant_stand")
     bx(mb, -0.17, 0.17, -0.17, 0.17, 0.6, 0.63, {"*": "wood_dark"}, ("-x", "+x", "-y", "+y", "+z", "-z"))
     legs_alpha(mb, 0.32, 0.32, 0.6, "chair_legs_wood")
-    cyl_r(mb, 0, 0, 0.63, 0.8, 0.11, "red_paint", sides=6)
+    pot(mb, 0, 0, 0.63, 0.17, 0.11, "red_paint")
     for a in (0.0, math.pi / 2):
         c, s = math.cos(a) * 0.26, math.sin(a) * 0.26
         quad(mb, [(-c, -s, 0.72), (c, s, 0.72), (c, s, 1.2), (-c, -s, 1.2)], "plant_4", DEC)

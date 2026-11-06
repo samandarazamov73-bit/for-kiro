@@ -76,6 +76,8 @@ class MB:
 
     def tube(self, path, r, mat, sides=6, cap0=False, cap1=False, uvscale=1.0):
         """Polyline tube with mitre-free joints (ring per vertex, oriented on the averaged tangent)."""
+        if r >= 0.012:
+            sides = max(sides, 8)       # with smooth normals 8 sides read as round, 6 as a hexagon
         n = len(path)
         rings = []
         for i in range(n):
@@ -116,6 +118,8 @@ class MB:
         self.uv[start:] = [(u0 + (u1 - u0) * min(max(u, 0), 1), v0 + (v1 - v0) * (v % 1.0)) for (u, v) in self.uv[start:]]
 
     def cyl(self, cx, cy, z0, z1, r, mat, sides=8, top=True, bottom=False, region=None, axis="z"):
+        # enough sides that, with smooth normals, pots, bins and bottles look round instead of hexagonal
+        sides = max(sides, 16 if r >= 0.12 else (12 if r >= 0.04 else 8))
         rings = []
         for z in (z0, z1):
             ring = []
