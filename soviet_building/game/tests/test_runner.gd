@@ -39,6 +39,7 @@ func place(p: Vector3, yaw: float) -> void:
 	pl.v = 0.0
 	pl.w = 0.0
 	pl.input_override = Vector2.ZERO
+	pl.reset_physics_interpolation()
 
 
 func drive(thr: float, steer: float, t: float) -> void:
@@ -65,7 +66,7 @@ func _run() -> void:
 	var p0: Vector3 = pl.global_position
 	await drive(1.0, 0.0, 2.5)
 	var d: float = pl.global_position.distance_to(p0)
-	check(d > 1.6 and d < 3.5, "drives forward at speed 3: %.2f m in 2.5 s (+ braking)" % d)
+	check(d > 2.5 and d < 6.5, "drives forward at speed 3 (8.6 km/h): %.2f m in 2.5 s (+ braking)" % d)
 	var y0: float = pl.rotation.y
 	await drive(0.0, 1.0, 1.0)
 	check(abs(angle_difference(y0, pl.rotation.y)) > 0.6, "turns on the spot: %.2f rad" % abs(angle_difference(y0, pl.rotation.y)))
@@ -75,7 +76,7 @@ func _run() -> void:
 	p0 = pl.global_position
 	await drive(1.0, 0.0, 3.0)
 	d = pl.global_position.distance_to(p0)
-	check(d > 3.0, "full speed 6.3 km/h: %.2f m in 3 s" % d)
+	check(d > 7.0, "full speed 14 km/h: %.2f m in 3 s" % d)
 
 	# --- wall stops the chair ------------------------------------------------------------------
 	place(Vector3(48.0, float(lv[0]) + 0.02, -8.1), 0.0)      # facing the pilaster on the rear corridor wall
@@ -132,6 +133,10 @@ func _run() -> void:
 		t += 0.25
 	check(lift.floor_idx == 2 and lift.state == "open", "lift arrives at floor 3 and opens (%.1f s)" % t)
 	check(abs(pl.global_position.y - float(lv[2])) < 0.12, "chair rode with the cabin (y=%.3f, floor %.2f)" % [pl.global_position.y, float(lv[2])])
+	var rope: MeshInstance3D = game.lift.ropes[0]["mesh"]
+	var rope_bottom: float = rope.position.y - rope.scale.y * 0.5
+	check(game.stats.get("lift_rope_tris_cut", 0) > 0 and absf(rope_bottom - (game.lift.roof0 + game.lift.y_off)) < 0.01,
+		"hoist ropes start on the cabin roof, not inside it (%d baked triangles cut, rope from y=%.2f)" % [game.stats.get("lift_rope_tris_cut", 0), rope_bottom])
 	place(pl.global_position, 0.0)
 	await drive(1.0, 0.0, 3.0)
 	check(pl.global_position.z < -6.9 and abs(pl.global_position.y - float(lv[2])) < 0.1,
@@ -158,6 +163,19 @@ func _run() -> void:
 	await wait(0.3)
 	await drive(1.0, 0.0, 2.5)
 	check(abs(pl.global_position.y - mn.y) < 0.12, "stairs are not climbable (y=%.2f, landing %.2f)" % [pl.global_position.y, mn.y])
+	# ground floor STAIR1: the invisible wall stands only in front of the first step, not on the open floor
+	var space: PhysicsDirectSpaceState3D = game.get_world_3d().direct_space_state
+	var y0f: float = float(lv[0]) + 0.5
+	var at_steps: Dictionary = space.intersect_ray(PhysicsRayQueryParameters3D.create(Vector3(31.0, y0f, -6.0), Vector3(32.0, y0f, -6.0)))
+	var on_floor: Dictionary = space.intersect_ray(PhysicsRayQueryParameters3D.create(Vector3(31.0, y0f, -4.0), Vector3(32.0, y0f, -4.0)))
+	check(not at_steps.is_empty() and on_floor.is_empty(),
+		"STAIR1 ground floor: blocked at the steps, open floor free (%s / %s)" % [not at_steps.is_empty(), not on_floor.is_empty()])
+	# turning on the spot against a wall never swings the footrest into it
+	place(Vector3(48.0, float(lv[0]) + 0.02, -8.1), 0.0)
+	await wait(0.3)
+	await drive(1.0, 0.0, 1.5)
+	await drive(0.0, 1.0, 1.5)
+	check(not pl._overlaps(pl.global_transform), "turning against a wall: the chair stays out of it")
 
 	# --- light switch ----------------------------------------------------------------------------
 	var sw = null

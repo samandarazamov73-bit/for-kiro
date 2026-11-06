@@ -15,8 +15,8 @@ var _focused := true
 
 const GRAIN_SHADER := """
 shader_type canvas_item;
-uniform float vignette = 0.55;
-uniform float grain = 0.045;
+uniform float vignette = 0.66;
+uniform float grain = 0.055;
 float hash(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
 void fragment() {
 	vec2 uv = UV - 0.5;

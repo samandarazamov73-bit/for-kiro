@@ -20,6 +20,10 @@ const ON_KINDS := ["corridor", "corridor_patient", "service_corridor", "hall", "
 const SHADOWS := 8
 var max_shadows := SHADOWS   # set by quality.gd
 const SHADOW_DIST := 15.0
+const DIM := 0.85             # the whole building a little darker than the fixtures' nominal output
+const LIGHT_PER_M2 := 0.2     # light_energy per square metre of an average room (per storey)
+const SHADOW_FADE := 2.5      # shadow opacity per second when a lamp starts or stops casting shadows
+var _fade := {}               # light -> target shadow opacity while it fades in or out
 
 
 func _group(room: String) -> Dictionary:
@@ -35,6 +39,8 @@ func setup(g) -> void:
 	off_mat.roughness = 0.3
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 1982
+	var rng_flick := RandomNumberGenerator.new()
+	rng_flick.seed = 1983
 	for f in game.level["fixtures"]:
 		var grp: Dictionary = _group(f["room"])
 		var mesh: Node = game.node(f["name"])
@@ -49,7 +55,7 @@ func setup(g) -> void:
 		var e: float = f["energy"]
 		match kind:
 			"pendant":
-				l.light_energy = e / 40.0
+				l.light_energy = minf(e / 40.0, 3.2)     # the hall chandeliers were blinding
 				l.omni_range = 11.0
 			"bulb":
 				l.light_energy = e / 40.0
@@ -60,8 +66,12 @@ func setup(g) -> void:
 			_:
 				l.light_energy = e / 44.0
 				l.omni_range = 7.0
+		# old tubes give a sickly greenish white, old ceiling lights a dirty yellow
 		if kind == "fluo":
-			l.light_color = Color(col[0], col[1], col[2]).lerp(Color(0.86, 0.95, 1.0), 0.35)
+			l.light_color = Color(col[0], col[1], col[2]).lerp(Color(0.84, 1.0, 0.8), 0.35)
+		elif kind == "plafond":
+			l.light_color = Color(col[0], col[1], col[2]).lerp(Color(1.0, 0.85, 0.6), 0.18)
+		l.light_energy *= DIM
 		l.omni_attenuation = 1.0
 		l.light_specular = 0.35
 		l.light_volumetric_fog_energy = 0.5
@@ -69,19 +79,23 @@ func setup(g) -> void:
 		l.omni_shadow_mode = OmniLight3D.SHADOW_CUBE
 		l.shadow_bias = 0.08
 		l.distance_fade_enabled = true
-		l.distance_fade_begin = 24.0
-		l.distance_fade_length = 6.0
+		l.distance_fade_begin = 30.0       # far lamps fade out slowly over 12 m instead of popping
+		l.distance_fade_length = 12.0
 		l.distance_fade_shadow = 14.0
 		add_child(l)
 		l.global_position = game._v3(f["pos"])
 		l.set_meta("base_energy", l.light_energy)
 		grp["lights"].append(l)
 		all_lights.append({"light": l, "room": f["room"]})
-		if f["state"] == "flicker":
+		var flicker: bool = f["state"] == "flicker"
+		if not flicker and kind in ["fluo", "plafond"] and rng_flick.randf() < 0.05:
+			flicker = true            # a few more failing lamps than the plan had
+		if flicker:
 			flickers.append({"light": l, "mesh": mesh, "room": f["room"], "next": rng.randf_range(0.5, 6.0),
 				"phase": 0, "n": 0})
 		if kind == "fluo":
 			fluo.append({"pos": l.global_position, "room": f["room"], "light": l})
+	_balance_rooms()
 	for gl in game.level["glows"]:
 		var m: Node = game.node(gl["name"])
 		if m != null:
@@ -110,6 +124,35 @@ func setup(g) -> void:
 	game.stats["flickering"] = flickers.size()
 
 
+## Small rooms (bathrooms, WCs) had one ceiling light as strong as a ward's: 2 to 2.5 times more light per
+## square metre than an average room, and with a 7 m reach it shone through the walls too. Rooms brighter
+## than average are toned down, and in small rooms the light's reach is kept to about the room.
+func _balance_rooms() -> void:
+	for room in groups:
+		var r: Dictionary = game.rooms.get(room, {})
+		var lights_in: Array = groups[room]["lights"]
+		if lights_in.is_empty():
+			continue
+		var area := 0.0
+		var diag := 0.0
+		for q in r.get("rects", []):
+			area += (q[1] - q[0]) * (q[3] - q[2])
+			diag = maxf(diag, Vector2(q[1] - q[0], q[3] - q[2]).length())
+		var storeys: float = maxf(1.0, roundf((float(r.get("ceil_y", 4.2)) - float(r.get("floor_y", 1.2))) / 3.3))
+		if area <= 0.0:
+			continue
+		var total := 0.0
+		for l in lights_in:
+			total += l.light_energy
+		var k: float = clampf(sqrt(LIGHT_PER_M2 * DIM * area * storeys / total), 0.6, 1.0)
+		for l in lights_in:
+			l.light_energy *= k
+			if storeys < 1.5:
+				# still reaching the floor 3 m below and the corners, but not far into the next rooms
+				l.omni_range = minf(l.omni_range, maxf(4.8, diag))
+			l.set_meta("base_energy", l.light_energy)
+
+
 func is_on(room: String) -> bool:
 	return groups.has(room) and groups[room]["on"]
 
@@ -125,6 +168,7 @@ func set_room(room: String, on: bool, _sound := true) -> void:
 		l.visible = on
 		if not on and l.shadow_enabled:
 			l.shadow_enabled = false
+			_fade.erase(l)
 	for m in grp["fixtures"]:
 		if m is GeometryInstance3D:
 			m.material_override = null if on else off_mat
@@ -168,6 +212,16 @@ func _process(dt: float) -> void:
 			else:
 				f["phase"] = 0
 				f["next"] = randf_range(1.5, 9.0)
+	for l in _fade.keys():
+		if not is_instance_valid(l):
+			_fade.erase(l)
+			continue
+		var goal: float = _fade[l]
+		l.shadow_opacity = move_toward(l.shadow_opacity, goal, dt * SHADOW_FADE)
+		if l.shadow_opacity == goal:
+			if goal == 0.0:
+				l.shadow_enabled = false
+			_fade.erase(l)
 	_shadow_t -= dt
 	if _shadow_t <= 0.0:
 		_shadow_t = 0.25
@@ -190,13 +244,17 @@ func _update_shadows(pp: Vector3) -> void:
 		want[cand[i][1]] = true
 	# Only touch lights whose shadow actually switches: setting shadow_enabled, even to the value it
 	# already has, makes Godot redraw the light's whole shadow cube (6 views of the building).
+	# Shadows fade in and out (shadow_opacity costs no redraw) instead of popping when the set changes.
 	for l in shadowed:
 		if is_instance_valid(l) and not want.has(l) and l.shadow_enabled:
-			l.shadow_enabled = false
+			_fade[l] = 0.0
 	shadowed = []
 	for l in want:
 		if not l.shadow_enabled:
+			l.shadow_opacity = 0.0
 			l.shadow_enabled = true
+		if l.shadow_opacity < 1.0:
+			_fade[l] = 1.0
 		shadowed.append(l)
 
 

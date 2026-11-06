@@ -62,6 +62,7 @@ func _ready() -> void:
 	_build_furniture_colliders()
 	_build_blockers()
 	hud = Hud.new()
+	hud.physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
 	add_child(hud)
 	player = Wheelchair.new()
 	player.game = self
@@ -69,6 +70,7 @@ func _ready() -> void:
 	var sp: Dictionary = level["spawn"]
 	player.global_position = _v3(sp["pos"]) + Vector3(0, 0.05, 0)
 	player.rotation.y = float(sp["yaw"])
+	player.reset_physics_interpolation()
 	_build_doors()
 	lights = LightManager.new()
 	add_child(lights)
@@ -78,6 +80,7 @@ func _ready() -> void:
 	add_child(lift)
 	lift.setup(self)
 	critters = Critters.new()
+	critters.physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF   # they move in _process
 	add_child(critters)
 	critters.setup(self)
 	ambience = Ambience.new()
@@ -229,10 +232,11 @@ func _setup_environment() -> void:
 	env.background_mode = Environment.BG_SKY
 	env.sky = sky
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	env.ambient_light_color = Color(0.32, 0.34, 0.4)
-	env.ambient_light_energy = 0.15
+	# a darker, dirtier night than before: less fill light, dusty greenish air, washed-out sickly colours
+	env.ambient_light_color = Color(0.3, 0.34, 0.32)
+	env.ambient_light_energy = 0.09
 	env.tonemap_mode = Environment.TONE_MAPPER_AGX
-	env.tonemap_exposure = 1.15
+	env.tonemap_exposure = 1.05
 	env.ssao_enabled = true
 	env.ssao_radius = 1.2
 	env.ssao_intensity = 2.2
@@ -243,14 +247,23 @@ func _setup_environment() -> void:
 	env.glow_bloom = 0.05
 	env.glow_hdr_threshold = 1.2
 	env.volumetric_fog_enabled = true
-	env.volumetric_fog_density = 0.012
-	env.volumetric_fog_albedo = Color(0.82, 0.8, 0.76)
+	env.volumetric_fog_density = 0.02
+	env.volumetric_fog_albedo = Color(0.74, 0.77, 0.68)
 	env.volumetric_fog_emission = Color(0, 0, 0)
 	env.volumetric_fog_length = 40.0
 	env.volumetric_fog_ambient_inject = 0.0
 	env.adjustment_enabled = true
-	env.adjustment_saturation = 0.82
-	env.adjustment_contrast = 1.06
+	env.adjustment_saturation = 0.7
+	env.adjustment_contrast = 1.14
+	# colour grade: shadows pulled towards green, highlights towards old yellowed paper (less blue)
+	var grade := Gradient.new()
+	grade.set_color(0, Color(0.0, 0.012, 0.0))
+	grade.set_color(1, Color(1.0, 0.97, 0.86))
+	grade.add_point(0.5, Color(0.49, 0.5, 0.45))
+	var lut := GradientTexture1D.new()
+	lut.gradient = grade
+	lut.width = 256
+	env.adjustment_color_correction = lut
 	var we := WorldEnvironment.new()
 	we.environment = env
 	add_child(we)
@@ -264,9 +277,39 @@ func _setup_environment() -> void:
 	add_child(moon)
 
 
+const GRIMY := ["M_Paint_WallBlue", "M_Paint_WallPeach", "M_Paint_WallBeige", "M_Plaster_White", "M_Ceiling_Paint",
+	"M_Linoleum_Brown", "M_Linoleum_Parquet", "M_Terrazzo", "M_Tile_WallWhite", "M_Tile_FloorCeramic",
+	"M_Wallpaper_Geometric", "M_Wallpaper_Floral", "M_Concrete_Interior", "M_Wood_DoorDark"]
+
+
+## Soft old stains for walls, floors and ceilings: mostly clean, here and there a faint darker patch.
+func _grime_texture() -> NoiseTexture2D:
+	var n := FastNoiseLite.new()
+	n.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
+	n.frequency = 0.009
+	n.fractal_octaves = 6
+	n.fractal_gain = 0.6
+	n.seed = 1974
+	var ramp := Gradient.new()
+	ramp.set_color(0, Color(0.74, 0.69, 0.6))
+	ramp.set_offset(0, 0.16)
+	ramp.set_color(1, Color(1.0, 1.0, 1.0))
+	ramp.set_offset(1, 0.52)
+	var tex := NoiseTexture2D.new()
+	tex.width = 512
+	tex.height = 512
+	tex.seamless = true
+	tex.noise = n
+	tex.color_ramp = ramp
+	return tex
+
+
 ## Indoors there is no sky to reflect, so fully metallic atlas regions would render black: tone metal down.
+## Walls, floors and ceilings get grime laid over them in world space (so it never repeats tile by tile),
+## lamp glass glows less, and window glass is a little dirty, so it no longer reads as an invisible wall.
 func _tune_materials() -> void:
 	var seen := {}
+	var grime := _grime_texture()
 	for key in nodes:
 		var mi = nodes[key]
 		if not (mi is MeshInstance3D) or mi.mesh == null:
@@ -280,6 +323,22 @@ func _tune_materials() -> void:
 			if nm in ["M_Atlas_Furniture", "M_Metal_Painted", "M_Metal_DarkSteel"]:
 				m.metallic = 0.35
 				m.metallic_specular = 0.5
+			if nm in GRIMY:
+				m.detail_enabled = true
+				m.detail_blend_mode = BaseMaterial3D.BLEND_MODE_MUL
+				m.detail_albedo = grime
+				m.detail_uv_layer = BaseMaterial3D.DETAIL_UV_2
+				m.uv2_triplanar = true
+				m.uv2_world_triplanar = true
+				m.uv2_scale = Vector3(0.28, 0.28, 0.28)
+				m.roughness = minf(1.0, m.roughness + 0.08)
+			elif nm.begins_with("M_Emissive_"):
+				m.emission_energy_multiplier *= 0.6
+			elif nm == "M_Glass_Clear":
+				m.roughness = maxf(m.roughness, 0.22)
+				if m.transparency != BaseMaterial3D.TRANSPARENCY_DISABLED:
+					m.albedo_color = Color(m.albedo_color.r * 0.85, m.albedo_color.g * 0.88, m.albedo_color.b * 0.8,
+						maxf(m.albedo_color.a, 0.3))
 	stats["materials"] = seen.size()
 
 
@@ -343,15 +402,21 @@ func _build_occluders_and_ranges() -> void:
 			continue
 		if sk.begins_with(("Fix_")) or sk.begins_with("Shell") or sk.begins_with("Stair") or sk.begins_with("Lift"):
 			continue
+		# Small things and furniture are not drawn far away (occlusion by the walls hides most of them anyway).
+		# They used to vanish at 12 and 32 m with a visible pop; now they are kept much farther and fade out
+		# smoothly (Godot draws them with transparency only while they fade). Up close every mesh also uses
+		# Godot's automatic LODs: fewer triangles the smaller it is on screen.
 		var aabb: AABB = mi.get_aabb()
 		var sz: float = aabb.size.length()
 		if sz < 0.45:
-			mi.visibility_range_end = 12.0
-			mi.visibility_range_end_margin = 2.0
+			mi.visibility_range_end = 30.0
+			mi.visibility_range_end_margin = 6.0
+			mi.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_SELF
 			ranged += 1
 		elif sz < 2.6 and aabb.position.length() < 6.0:
-			mi.visibility_range_end = 32.0
-			mi.visibility_range_end_margin = 3.0
+			mi.visibility_range_end = 70.0
+			mi.visibility_range_end_margin = 10.0
+			mi.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_SELF
 			ranged += 1
 	stats["occluders"] = occ
 	stats["ranged_meshes"] = ranged
@@ -388,14 +453,66 @@ func _build_furniture_colliders() -> void:
 	stats["furniture_boxes"] = body.get_child_count()
 
 
+var _blockers: StaticBody3D
+
+
+## Invisible walls where a flight of stairs starts or the floor drops away (the chair cannot use stairs).
+## level.json draws each one across the whole stair well; _trim_blockers keeps only the stretches that
+## really border a step or a drop, so no invisible wall stands on open floor.
 func _build_blockers() -> void:
-	var body := StaticBody3D.new()
-	body.name = "StairBlockers"
-	body.collision_layer = L_WORLD
-	add_child(body)
+	_blockers = StaticBody3D.new()
+	_blockers.name = "StairBlockers"
+	_blockers.collision_layer = L_WORLD
+	add_child(_blockers)
 	for b in level["blockers"]:
-		_box_shape(body, _v3(b["min"]), _v3(b["max"]))
-	stats["stair_blockers"] = body.get_child_count()
+		_box_shape(_blockers, _v3(b["min"]), _v3(b["max"]))
+	stats["stair_blockers"] = _blockers.get_child_count()
+	_trim_blockers.call_deferred()
+
+
+func _trim_blockers() -> void:
+	await get_tree().physics_frame      # the building's colliders are in the physics space now
+	var space := get_world_3d().direct_space_state
+	var kept := []
+	for b in level["blockers"]:
+		var mn := _v3(b["min"])
+		var mx := _v3(b["max"])
+		var along_x: bool = (mx.x - mn.x) > (mx.z - mn.z)
+		var a: float = mn.x if along_x else mn.z
+		var span: float = (mx.x - mn.x) if along_x else (mx.z - mn.z)
+		var thin: float = (mn.z + mx.z) * 0.5 if along_x else (mn.x + mx.x) * 0.5
+		var in_run := false
+		var run_start := 0.0
+		var n := int(ceil(span / 0.1))
+		for i in n + 1:
+			var s: float = a + minf(i * 0.1, span)
+			var need := false
+			if i < n:
+				var probe := s + 0.05
+				for side in [-0.3, 0.3]:
+					var p := Vector3(probe, mn.y + 1.4, thin + side) if along_x else Vector3(thin + side, mn.y + 1.4, probe)
+					var q := PhysicsRayQueryParameters3D.create(p, p + Vector3(0, -3.0, 0), L_WORLD, [_blockers.get_rid()])
+					var hit := space.intersect_ray(q)
+					if hit.is_empty() or absf(float(hit["position"].y) - mn.y) > 0.04:
+						need = true
+			if need and not in_run:
+				in_run = true
+				run_start = s
+			elif not need and in_run:
+				kept.append([along_x, run_start - 0.05, s + 0.05, mn, mx])
+				in_run = false
+		if in_run:
+			kept.append([along_x, run_start - 0.05, a + span + 0.05, mn, mx])
+	for c in _blockers.get_children():
+		c.free()
+	for k in kept:
+		var mn: Vector3 = k[3]
+		var mx: Vector3 = k[4]
+		if k[0]:
+			_box_shape(_blockers, Vector3(maxf(k[1], mn.x - 0.05), mn.y, mn.z), Vector3(minf(k[2], mx.x + 0.05), mx.y, mx.z))
+		else:
+			_box_shape(_blockers, Vector3(mn.x, mn.y, maxf(k[1], mn.z - 0.05)), Vector3(mx.x, mx.y, minf(k[2], mx.z + 0.05)))
+	stats["stair_blockers"] = _blockers.get_child_count()
 
 
 func _build_doors() -> void:

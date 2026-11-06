@@ -27,6 +27,11 @@ const SPEED := 0.85
 const ACC := 0.55
 const DOOR_TIME := 1.5
 const AUTO_CLOSE := 9.0
+const ROPE_TOP := 13.95               # under the overhead pulley beam in the shaft
+const ROPE_X := [37.44, 37.56]
+const ROPE_Z := -5.15
+var ropes := []
+var roof0 := 0.0
 
 
 func setup(g) -> void:
@@ -67,9 +72,11 @@ func setup(g) -> void:
 			m.reparent(cabin, true)
 		cab_doors.append({"shape": shp, "mesh": m, "base_x": shp.position.x, "mesh_x": m.position.x if m else 0.0,
 			"dir": float(d["dir"]), "built_open": bool(d["open"])})
+	roof0 = mx.y + 0.15
+	_fix_ropes(g)
 	cab_light = OmniLight3D.new()
 	cab_light.light_color = Color(1.0, 0.84, 0.62)
-	cab_light.light_energy = 0.9
+	cab_light.light_energy = 0.55
 	cab_light.omni_range = 3.2
 	cab_light.shadow_enabled = false
 	cabin.add_child(cab_light)
@@ -188,6 +195,65 @@ func player_in_cabin() -> bool:
 	return p.x > mn.x and p.x < mx.x and p.z > front_z - 0.1 and p.z < mx.z and abs(p.y - (levels[0] + y_off)) < 0.8
 
 
+## The shaft model has the two hoist ropes baked in from the parked cabin's roof up to the pulleys, so
+## once the cabin went up they ran right through it. They are cut out of the shaft mesh here and replaced
+## by two ropes that start on the cabin roof and follow it.
+func _fix_ropes(g) -> void:
+	var shaft = g.node("Lift_Shaft_Equipment")
+	if shaft is MeshInstance3D and shaft.mesh:
+		var src: Mesh = shaft.mesh
+		var out := ArrayMesh.new()
+		var cut := 0
+		for si in src.get_surface_count():
+			var arr: Array = src.surface_get_arrays(si)
+			var verts: PackedVector3Array = arr[Mesh.ARRAY_VERTEX]
+			var idx: PackedInt32Array = arr[Mesh.ARRAY_INDEX]
+			var keep := PackedInt32Array()
+			for i in range(0, idx.size(), 3):
+				var rope := true
+				for k in 3:
+					var p: Vector3 = shaft.global_transform * verts[idx[i + k]]
+					if absf(p.z - ROPE_Z) > 0.03 or p.y < roof0 - 0.05 \
+							or (absf(p.x - ROPE_X[0]) > 0.03 and absf(p.x - ROPE_X[1]) > 0.03):
+						rope = false
+						break
+				if rope:
+					cut += 1
+				else:
+					keep.append_array([idx[i], idx[i + 1], idx[i + 2]])
+			arr[Mesh.ARRAY_INDEX] = keep
+			out.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arr)
+			out.surface_set_material(si, src.surface_get_material(si))
+		shaft.mesh = out
+		g.stats["lift_rope_tris_cut"] = cut
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(0.07, 0.065, 0.06)
+	mat.metallic = 0.6
+	mat.roughness = 0.45
+	for x in ROPE_X:
+		var mi := MeshInstance3D.new()
+		var cm := CylinderMesh.new()
+		cm.top_radius = 0.008
+		cm.bottom_radius = 0.008
+		cm.height = 1.0
+		cm.radial_segments = 6
+		cm.rings = 1
+		mi.mesh = cm
+		mi.material_override = mat
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		add_child(mi)
+		ropes.append({"mesh": mi, "x": float(x)})
+	_update_ropes()
+
+
+func _update_ropes() -> void:
+	var roof: float = roof0 + y_off
+	var length: float = maxf(ROPE_TOP - roof, 0.01)
+	for r in ropes:
+		r["mesh"].position = Vector3(r["x"], roof + length * 0.5, ROPE_Z)
+		r["mesh"].scale = Vector3(1.0, length, 1.0)
+
+
 func _physics_process(dt: float) -> void:
 	match state:
 		"open":
@@ -228,10 +294,12 @@ func _physics_process(dt: float) -> void:
 			var step: float = min(abs(dist), vel * dt)
 			y_off += dir * step
 			cabin.global_position = Vector3(0, y_off, 0)
+			_update_ropes()
 			motor.pitch_scale = 0.8 + 0.3 * vel / SPEED
 			if abs(goal - y_off) < 0.002:
 				y_off = goal
 				cabin.global_position = Vector3(0, y_off, 0)
+				_update_ropes()
 				floor_idx = f
 				queue.pop_front()
 				motor.stop()

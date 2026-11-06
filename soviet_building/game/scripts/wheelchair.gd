@@ -1,26 +1,39 @@
 extends CharacterBody3D
 ## Electric wheelchair seen from the seat (first person).
 ## Drive model of a real mid-wheel-drive / rear-drive power chair controlled by a joystick:
-## - five speed settings (2.2 .. 6.3 km/h), reverse at 45 % of the forward speed;
+## - five speed settings (4 .. 14 km/h), reverse at 45 % of the forward speed;
 ## - limited motor acceleration and stronger braking when the stick is released (electromagnetic brakes
 ##   click open when you start and engage when you stop; a stopped chair does not roll);
 ## - differential drive: turns on the spot, turns slower the faster it goes;
 ## - the front casters swing round when you change direction (a small heading wobble);
 ## - on slopes gravity speeds it up or slows it down a little;
 ## - it does not slide along walls: hitting something stops the chair with a bump.
+## The collision shapes cover everything you can see of the chair (wheels, armrests, legs, footrest), and
+## turning on the spot is refused when it would swing a part of the chair into a wall or a piece of furniture.
 
 var game
 
-const SPEEDS := [0.6, 0.9, 1.2, 1.45, 1.75]
+const SPEEDS := [1.1, 1.75, 2.4, 3.1, 3.9]     # m/s: 4.0, 6.3, 8.6, 11.2, 14.0 km/h
 const REVERSE := 0.45
-const ACCEL := 0.75
-const BRAKE := 1.7
+const ACCEL := 0.8          # m/s² at the slowest setting; faster settings pull away harder
+const BRAKE := 1.8
 const YAW_MAX := 1.35
-const YAW_ACC := 3.4
+const YAW_ACC := 7.0
+const YAW_STOP := 11.0
 const RADIUS := 0.36
+const FRONT := 0.75         # from the chair's centre to the front of the footrest
 const EYE := 1.18
+const HEAD_POS := Vector3(0, EYE, 0.06)
 const MOUSE_SENS := 0.0024
-const REACH := 2.4
+const REACH := 1.5          # doors, switches, buttons: from the eyes, about an arm's length past the knees
+const SEE_RANGE := 6.0      # farther than REACH: "too far" when you try
+# collision boxes (local, metres): the chair with its wheels, and the legs with the footrest in front.
+# They start 6 cm above the floor, like a real footrest: door sills roll under them.
+const CLEAR := 0.06
+const BODY_HALF_W := 0.36
+const BODY_Z := Vector2(-0.30, 0.40)
+const LEGS_HALF_W := 0.23
+const LEGS_Z := Vector2(-FRONT, -0.30)
 
 var speed_level := 2
 var v := 0.0
@@ -40,6 +53,8 @@ var t := 0.0
 var braked := true
 var input_override = null
 var target = null
+var far_target = null
+var _boxes: Array[CollisionShape3D] = []
 var motor: AudioStreamPlayer
 var wheels: AudioStreamPlayer
 var _ray_frame := 0
@@ -55,15 +70,21 @@ func _ready() -> void:
 	floor_constant_speed = true
 	safe_margin = 0.02
 	platform_on_leave = CharacterBody3D.PLATFORM_ON_LEAVE_DO_NOTHING
+	# floor contact: a capsule in the middle rolls over door sills like the wheels do
 	var cs := CollisionShape3D.new()
 	var cap := CapsuleShape3D.new()
-	cap.radius = RADIUS
+	cap.radius = 0.3
 	cap.height = 1.3
 	cs.shape = cap
 	cs.position = Vector3(0, 0.65, 0)
 	add_child(cs)
+	_boxes.append(_collision_box(BODY_HALF_W, BODY_Z, CLEAR, 1.3))
+	_boxes.append(_collision_box(LEGS_HALF_W, LEGS_Z, CLEAR, 0.75))
+	# The camera is not a child that moves with the physics ticks: it is placed every rendered frame from
+	# the chair's interpolated position and the mouse look, so looking around stays smooth at any frame rate.
 	head = Node3D.new()
-	head.position = Vector3(0, EYE, 0.06)
+	head.top_level = true
+	head.physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
 	add_child(head)
 	cam = Camera3D.new()
 	cam.fov = 74.0
@@ -76,6 +97,30 @@ func _ready() -> void:
 	wheels = _loop_player("wheels_loop", -80.0)
 	if not ("--test" in OS.get_cmdline_user_args() or "--shots" in OS.get_cmdline_user_args()):
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+
+
+func _collision_box(half_w: float, z: Vector2, y0: float, y1: float) -> CollisionShape3D:
+	var cs := CollisionShape3D.new()
+	var bs := BoxShape3D.new()
+	bs.size = Vector3(half_w * 2.0, y1 - y0, z.y - z.x)
+	cs.shape = bs
+	cs.position = Vector3(0.0, (y0 + y1) * 0.5, (z.x + z.y) * 0.5)
+	add_child(cs)
+	return cs
+
+
+## Whether the chair's boxes would overlap the world (walls, furniture, doors, the lift) at transform xf.
+func _overlaps(xf: Transform3D) -> bool:
+	var space := get_world_3d().direct_space_state
+	for cs in _boxes:
+		var q := PhysicsShapeQueryParameters3D.new()
+		q.shape = cs.shape
+		q.transform = xf * cs.transform
+		q.collision_mask = collision_mask
+		q.exclude = [get_rid()]
+		if not space.intersect_shape(q, 1).is_empty():
+			return true
+	return false
 
 
 func _loop_player(name: String, vol: float) -> AudioStreamPlayer:
@@ -143,7 +188,7 @@ func _build_chair() -> void:
 		wheel.mesh = cm
 		wheel.material_override = rubber
 		wheel.rotation.z = PI / 2
-		wheel.position = Vector3(0.34 * sx, 0.3, 0.08)
+		wheel.position = Vector3(0.31 * sx, 0.3, 0.08)     # rims inside BODY_HALF_W: 0.72 m over the rims
 		# like the rest of the chair: a shadow caster that moves with the player would make every
 		# nearby lamp redraw its shadow cube on every frame of driving
 		wheel.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
@@ -155,7 +200,7 @@ func _build_chair() -> void:
 		rim.mesh = rm
 		rim.material_override = _mat(Color(0.7, 0.72, 0.74), 0.25, 1.0)
 		rim.rotation.z = PI / 2
-		rim.position = Vector3(0.38 * sx, 0.3, 0.08)
+		rim.position = Vector3(0.345 * sx, 0.3, 0.08)
 		rim.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		chair.add_child(rim)
 		_box(chair, Vector3(0.1, 0.08, 0.25), Vector3(0.09 * sx, 0.12, -0.6), _mat(Color(0.16, 0.1, 0.06), 0.6))
@@ -229,6 +274,8 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif event.is_action_pressed("interact"):
 		if target != null and is_instance_valid(target):
 			target.interact(self)
+		elif far_target != null and is_instance_valid(far_target):
+			game.hud.message("Слишком далеко — подъедьте ближе")
 
 
 func joystick() -> Vector2:
@@ -249,14 +296,18 @@ func _physics_process(dt: float) -> void:
 	var j := joystick()
 	var vmax: float = SPEEDS[speed_level]
 	var vt: float = j.x * vmax * (REVERSE if j.x < 0.0 else 1.0)
-	# motor torque: accelerate slowly, brake harder (and when the stick goes the other way)
-	var a: float = ACCEL if (absf(vt) > absf(v) and signf(vt) == signf(v)) or absf(v) < 0.02 else BRAKE
+	# motor torque: accelerate gently, brake harder (and when the stick goes the other way); the faster
+	# settings pull away and stop harder, so speed 5 reaches 14 km/h in about 2 s and stops in about 1 s
+	var acc: float = maxf(ACCEL, vmax * 0.55)
+	var brk: float = maxf(BRAKE, vmax * 1.1)
+	var a: float = acc if (absf(vt) > absf(v) and signf(vt) == signf(v)) or absf(v) < 0.02 else brk
 	if abs(j.x) < 0.05:
-		a = BRAKE
+		a = brk
 	v = move_toward(v, vt, a * dt)
 	var turn_scale: float = 1.0 - 0.55 * clamp(abs(v) / SPEEDS[-1], 0.0, 1.0)
 	var wt: float = -j.y * YAW_MAX * turn_scale * (0.75 if speed_level < 1 else 1.0)
-	w = move_toward(w, wt, YAW_ACC * dt)
+	# turning answers the keys quickly and stops as soon as they are released
+	w = move_toward(w, wt, (YAW_ACC if absf(wt) > absf(w) and signf(wt) == signf(w) else YAW_STOP) * dt)
 	# casters swing round when the direction of travel reverses
 	var dir: float = signf(v) if absf(v) > 0.05 else last_dir
 	if dir != last_dir:
@@ -265,7 +316,16 @@ func _physics_process(dt: float) -> void:
 	caster = lerp(caster, caster_kick, 6.0 * dt)
 	caster_kick = move_toward(caster_kick, 0.0, 1.5 * dt)
 	var yaw_rate: float = w + caster * 0.35 * clampf(absf(v) * 2.0, 0.0, 1.0)
-	rotate_y(yaw_rate * dt)
+	var turn: float = yaw_rate * dt
+	if absf(turn) > 0.00001:
+		# do not swing the footrest or a wheel into a wall or a piece of furniture
+		var turned := global_transform.rotated_local(Vector3.UP, turn)
+		if not _overlaps(turned) or _overlaps(global_transform):
+			global_transform = turned
+		else:
+			w = 0.0
+			caster = 0.0
+			caster_kick = 0.0
 	# brakes
 	var moving: bool = abs(v) > 0.02 or abs(w) > 0.02 or j.length() > 0.05
 	if moving and braked:
@@ -297,7 +357,7 @@ func _physics_process(dt: float) -> void:
 			var hit: float = abs(v)
 			v *= 0.1
 			shake = clamp(hit * 0.025, 0.004, 0.05)
-			game.play_at("bump", global_position + fwd * RADIUS + Vector3(0, 0.4, 0), linear_to_db(clamp(hit / 1.6, 0.15, 1.0)), randf_range(0.9, 1.1), 18.0)
+			game.play_at("bump", global_position + fwd * (FRONT if v > 0.0 else RADIUS) + Vector3(0, 0.4, 0), linear_to_db(clamp(hit / 1.6, 0.15, 1.0)), randf_range(0.9, 1.1), 18.0)
 			game.critters.scare(global_position, 4.0)
 			break
 		elif into > 0.2:
@@ -322,31 +382,44 @@ func _update_view(dt: float) -> void:
 	look_idle += dt
 	if look_idle > 2.5 and abs(v) > 0.3:
 		look_yaw = lerp(look_yaw, 0.0, 1.2 * dt)
-	head.rotation = Vector3(look_pitch, look_yaw, 0)
 	var vib: float = clamp(abs(v) / SPEEDS[-1], 0.0, 1.0)
 	shake = move_toward(shake, 0.0, 0.12 * dt)
-	cam.position = Vector3(randf_range(-1, 1) * shake, sin(t * 23.0) * 0.0018 * vib + randf_range(-1, 1) * shake,
-		0.0)
 	chair.rotation.z = sin(t * 17.0) * 0.002 * vib
 	stick.rotation = Vector3(-joystick().x * 0.35, 0, -joystick().y * 0.35)
+
+
+## The eyes for a given chair transform (mouse look included).
+func _eye(xf: Transform3D) -> Transform3D:
+	return xf * Transform3D(Basis.from_euler(Vector3(look_pitch, look_yaw, 0.0)), HEAD_POS)
+
+
+func _process(_dt: float) -> void:
+	# every rendered frame: the latest mouse look and the chair's position interpolated between physics ticks
+	head.global_transform = _eye(get_global_transform_interpolated())
+	var vib: float = clamp(abs(v) / SPEEDS[-1], 0.0, 1.0)
+	cam.position = Vector3(randf_range(-1, 1) * shake, sin(t * 23.0) * 0.0018 * vib + randf_range(-1, 1) * shake, 0.0)
 
 
 func _update_target() -> void:
 	_ray_frame += 1
 	if _ray_frame % 3 != 0:
 		return
-	var from := cam.global_position
-	var to := from - cam.global_basis.z * REACH
-	var q: PhysicsRayQueryParameters3D = PhysicsRayQueryParameters3D.create(from, to, game.L_WORLD | game.L_DOORS | game.L_INTERACT | game.L_LIFT,
-		[get_rid()])
+	var eye := _eye(global_transform)
+	var from := eye.origin
+	var dir := -eye.basis.z
+	var q: PhysicsRayQueryParameters3D = PhysicsRayQueryParameters3D.create(from, from + dir * SEE_RANGE,
+		game.L_WORLD | game.L_DOORS | game.L_INTERACT | game.L_LIFT, [get_rid()])
 	q.collide_with_areas = true
 	var hit: Dictionary = get_world_3d().direct_space_state.intersect_ray(q)
-	var new_target = null
+	var found = null
 	if not hit.is_empty():
 		var col: Object = hit["collider"]
 		if col.has_meta("interact"):
-			new_target = col.get_meta("interact")
-	target = new_target
+			found = col.get_meta("interact")
+	# within reach: show what E does; farther: pressing E says to come closer
+	var near: bool = found != null and from.distance_to(hit["position"]) <= REACH
+	target = found if near else null
+	far_target = found if not near else null
 	game.hud.set_prompt(target.prompt(self) if target != null else "")
 
 
