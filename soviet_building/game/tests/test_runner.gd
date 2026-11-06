@@ -288,7 +288,7 @@ func _bench(args: Array) -> void:
 	get_tree().quit(0)
 
 
-const FEATURES := ["Medium as is", "no volumetric fog", "no SSAO", "no glow", "moon shadow 2 splits",
+const FEATURES := ["Medium as is", "no volumetric fog", "no SSAO", "no glow", "moon shadow 4 splits (old Medium)",
 	"moon shadow off", "lamp shadows off", "lamps not lighting the fog", "3D resolution x0.7"]
 
 
@@ -297,14 +297,15 @@ func _feature(i: int) -> void:
 	game.quality.apply()
 	game.env.glow_enabled = true
 	game.moon.shadow_enabled = true
-	game.moon.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_4_SPLITS
 	for e in game.lights.all_lights:
 		e["light"].light_volumetric_fog_energy = 0.5
 	match i:
 		1: game.env.volumetric_fog_enabled = false
 		2: game.env.ssao_enabled = false
 		3: game.env.glow_enabled = false
-		4: game.moon.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS
+		4:
+			game.moon.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_4_SPLITS
+			game.moon.directional_shadow_split_1 = 0.1
 		5: game.moon.shadow_enabled = false
 		6: game.lights.max_shadows = 0
 		7:

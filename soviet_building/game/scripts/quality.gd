@@ -16,31 +16,59 @@ const SHADOWED_LAMPS := [3, 5, 8]
 const SHADOW_ATLAS := [2048, 2048, 4096]
 const MOON_ATLAS := [2048, 2048, 4096]
 const MOON_SHADOW_DIST := [24.0, 32.0, 40.0]
+# The moon's shadow is redrawn every frame and was most of all shadow work (about 87 % of the shadow
+# draw calls in the hall). Two cascades instead of four: sharp up to about 8 m, softer beyond.
+const MOON_TWO_SPLITS := [true, true, false]
 const SOFT_SHADOWS := [RenderingServer.SHADOW_QUALITY_SOFT_VERY_LOW, RenderingServer.SHADOW_QUALITY_SOFT_LOW,
 	RenderingServer.SHADOW_QUALITY_SOFT_LOW]
 
+## Frame-rate limit, switched with L: 30 fps or none (then the screen's refresh rate, with vsync).
+## On Medium a MacBook GPU does not reach 60 fps, so it works flat out and only a limit below what it
+## manages makes it cooler. On by default on a MacBook Air, which has no fan.
+const FPS_LIMIT := 30
+
 var game
 var level := 2
+var fps_limited := false
 
 
 func setup(g) -> void:
 	game = g
 	level = 1 if OS.has_feature("macos") else 2
+	fps_limited = OS.get_model_name().begins_with("MacBookAir")
 	var cfg := ConfigFile.new()
 	if cfg.load(SAVE_PATH) == OK:
 		level = clampi(int(cfg.get_value("graphics", "quality", level)), 0, 2)
+		fps_limited = bool(cfg.get_value("graphics", "fps_limit_30", fps_limited))
 	get_window().size_changed.connect(_apply_scale)
 	apply()
+	game.hud.update_fps_cap()
 
 
 func cycle() -> void:
 	level = (level + 1) % NAMES.size()
 	apply()
+	_save("quality", level)
+	game.hud.message("Графика: " + NAMES[level])
+
+
+func toggle_fps_limit() -> void:
+	fps_limited = not fps_limited
+	_save("fps_limit_30", fps_limited)
+	game.hud.update_fps_cap()
+	game.hud.message("Не больше %d кадров/с: меньше греется" % FPS_LIMIT if fps_limited else "Без ограничения кадров")
+
+
+## The frame-rate limit for normal play, 0 = none.
+func fps_cap() -> int:
+	return FPS_LIMIT if fps_limited else 0
+
+
+func _save(key: String, value) -> void:
 	var cfg := ConfigFile.new()
 	cfg.load(SAVE_PATH)
-	cfg.set_value("graphics", "quality", level)
+	cfg.set_value("graphics", key, value)
 	cfg.save(SAVE_PATH)
-	game.hud.message("Графика: " + NAMES[level])
 
 
 func apply() -> void:
@@ -53,6 +81,12 @@ func apply() -> void:
 	RenderingServer.directional_soft_shadow_filter_set_quality(SOFT_SHADOWS[level])
 	RenderingServer.directional_shadow_atlas_set_size(MOON_ATLAS[level], true)
 	game.moon.directional_shadow_max_distance = MOON_SHADOW_DIST[level]
+	if MOON_TWO_SPLITS[level]:
+		game.moon.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS
+		game.moon.directional_shadow_split_1 = 0.25
+	else:
+		game.moon.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_4_SPLITS
+		game.moon.directional_shadow_split_1 = 0.1
 	get_viewport().positional_shadow_atlas_size = SHADOW_ATLAS[level]
 	if game.lights:
 		game.lights.max_shadows = SHADOWED_LAMPS[level]

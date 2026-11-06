@@ -162,7 +162,7 @@ func _setup_input() -> void:
 		"drive_forward": [KEY_W, KEY_UP], "drive_back": [KEY_S, KEY_DOWN], "turn_left": [KEY_A, KEY_LEFT],
 		"turn_right": [KEY_D, KEY_RIGHT], "interact": [KEY_E, KEY_F], "horn": [KEY_H],
 		"speed_up": [KEY_EQUAL, KEY_KP_ADD, KEY_R], "speed_down": [KEY_MINUS, KEY_KP_SUBTRACT, KEY_Q],
-		"pause": [KEY_ESCAPE], "fullscreen": [KEY_F11], "quality": [KEY_G, KEY_F2],
+		"pause": [KEY_ESCAPE], "fullscreen": [KEY_F11], "quality": [KEY_G, KEY_F2], "fps_limit": [KEY_L],
 	}
 	for a in keys:
 		if not InputMap.has_action(a):
@@ -453,6 +453,9 @@ func _fit_window_macos() -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("quality") and quality:
 		quality.cycle()
+		return
+	if event.is_action_pressed("fps_limit") and quality:
+		quality.toggle_fps_limit()
 		return
 	if event.is_action_pressed("fullscreen"):
 		var w := get_window()
