@@ -89,7 +89,7 @@ func _ready() -> void:
 	stats["load_ms"] = Time.get_ticks_msec() - t0
 	print("Sanatorium loaded in %d ms: %s" % [stats["load_ms"], str(stats)])
 	var args := OS.get_cmdline_user_args()
-	if "--test" in args or "--shots" in args:
+	if "--test" in args or "--shots" in args or "--bench" in args:
 		var tr: Node = load("res://tests/test_runner.gd").new()
 		tr.game = self
 		add_child(tr)

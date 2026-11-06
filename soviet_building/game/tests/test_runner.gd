@@ -246,9 +246,12 @@ const BENCH_SPOTS := ["hall", "corridor_floor2", "double_room", "club_hall"]
 
 func _bench(args: Array) -> void:
 	var out: String = "/tmp"
+	var levels := [0, 1, 2]
 	for a in args:
 		if String(a).begins_with("--out="):
 			out = String(a).substr(6)
+		if String(a).begins_with("--quality="):      # only this level: 0 Low, 1 Medium, 2 High
+			levels = [clampi(int(String(a).substr(10)), 0, 2)]
 	DisplayServer.window_set_vsync_mode(DisplayServer.VSYNC_DISABLED)
 	Engine.max_fps = 0
 	var pl = game.player
@@ -257,7 +260,7 @@ func _bench(args: Array) -> void:
 	game.lights.set_room("L1.EB_HALL", true)
 	print("BENCH window %s, driver %s, GPU %s" % [str(get_window().size), RenderingServer.get_current_rendering_driver_name(),
 		RenderingServer.get_video_adapter_name()])
-	for q in [0, 1, 2]:
+	for q in levels:
 		game.quality.level = q
 		game.quality.apply()
 		var line := "BENCH %-8s 3D scale %.2f:" % [game.quality.NAMES[q], get_viewport().scaling_3d_scale]
@@ -271,13 +274,40 @@ func _bench(args: Array) -> void:
 			pl.look_pitch = atan2(dir.y, Vector2(dir.x, dir.z).length())
 			pl.look_yaw = 0.0
 			await wait(2.0)
-			var f0 := Engine.get_frames_drawn()
-			var t0 := Time.get_ticks_usec()
-			await wait(4.0)
-			var fps := float(Engine.get_frames_drawn() - f0) / ((Time.get_ticks_usec() - t0) / 1e6)
-			total += fps
-			line += "  %s %.1f" % [name, fps]
+			var m: Array = await _measure(4.0)
+			total += m[0]
+			line += "  %s %.1f (%d)" % [name, m[0], m[1]]
 			if name == "hall":
 				get_viewport().get_texture().get_image().save_png(out.path_join("bench_q%d_%s.png" % [q, name]))
-		print(line + "  | average %.1f fps" % (total / BENCH_SPOTS.size()))
+		line += "  | average %.1f fps" % (total / BENCH_SPOTS.size())
+		# driving down the lit ground-floor corridor: whatever moves with the chair (and the rats)
+		# can make the nearby lamps redraw their shadows, which the standing spots above never show
+		pl.speed_level = 4
+		place(Vector3(45.0, float(game.level["levels"][0]) + 0.02, -8.1), -PI / 2)
+		pl.look_pitch = 0.0
+		pl.look_yaw = 0.0
+		await wait(2.0)
+		pl.input_override = Vector2(1.0, 0.0)
+		await wait(0.5)
+		var p1: Vector3 = pl.global_position
+		var md: Array = await _measure(3.0)
+		pl.input_override = Vector2.ZERO
+		print(line + "  | driving %.1f (%d), %.1f m" % [md[0], md[1], pl.global_position.distance_to(p1)])
+	print("BENCH numbers: fps (draw calls per frame spent on shadows)")
 	get_tree().quit(0)
+
+
+## Frames per second, and draw calls per frame spent on shadows, over t seconds.
+func _measure(t: float) -> Array:
+	var vp := get_viewport().get_viewport_rid()
+	var frames := 0
+	var shadow_draws := 0
+	var elapsed := 0.0
+	var t0 := Time.get_ticks_usec()
+	while elapsed < t:
+		await get_tree().process_frame
+		elapsed += get_process_delta_time()
+		frames += 1
+		shadow_draws += RenderingServer.viewport_get_render_info(vp, RenderingServer.VIEWPORT_RENDER_INFO_TYPE_SHADOW,
+			RenderingServer.VIEWPORT_RENDER_INFO_DRAW_CALLS_IN_FRAME)
+	return [frames / ((Time.get_ticks_usec() - t0) / 1e6), shadow_draws / maxi(frames, 1)]
