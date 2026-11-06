@@ -72,7 +72,7 @@ jobs:
   # Apple M1 runner: launch the exported Mac app, then run the tests and an FPS benchmark from source.
   mac-m1-check:
     needs: build
-    runs-on: macos-14
+    runs-on: macos-15   # Apple Silicon; GitHub stopped serving macos-14 in November 2026
     env:
       # The runner's virtual GPU is not an Apple-Silicon GPU family: use Godot's fog path without texture atomics.
       GODOT_MTL_DISABLE_IMAGE_ATOMICS: "1"
