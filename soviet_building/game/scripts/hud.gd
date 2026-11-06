@@ -11,6 +11,7 @@ var menu: Control
 var _msg_t := 0.0
 var _room_t := 0.0
 var _intro_t := 0.0
+var _focused := true
 
 const GRAIN_SHADER := """
 shader_type canvas_item;
@@ -168,6 +169,28 @@ func toggle_menu() -> void:
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE if menu.visible else Input.MOUSE_MODE_CAPTURED
 	if menu.visible:
 		_center(menu)
+	_update_fps_cap()
+
+
+## The paused game and a game left in the background still draw every frame: cap the frame rate there,
+## so a fanless MacBook does not heat up while nobody plays. 30 fps behind the pause menu looks the same,
+## because the picture stands still (the film grain changes 24 times a second anyway).
+func _update_fps_cap() -> void:
+	var args := OS.get_cmdline_user_args()
+	if "--bench" in args or "--shots" in args:
+		return
+	if not _focused:
+		Engine.max_fps = 10
+	elif menu and menu.visible:
+		Engine.max_fps = 30
+	else:
+		Engine.max_fps = 0
+
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_APPLICATION_FOCUS_OUT or what == NOTIFICATION_APPLICATION_FOCUS_IN:
+		_focused = what == NOTIFICATION_APPLICATION_FOCUS_IN
+		_update_fps_cap()
 
 
 func _unhandled_input(event: InputEvent) -> void:

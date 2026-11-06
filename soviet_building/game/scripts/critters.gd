@@ -92,13 +92,16 @@ func _build_meshes() -> void:
 	roach_mesh["ant"] = ant
 
 
-func _mi(parent: Node3D, mesh: Mesh, mat: Material, pos: Vector3, scl := Vector3.ONE) -> MeshInstance3D:
+## Every move of a shadow-casting mesh makes Godot redraw the shadows of all lamps around it, and the
+## critters move almost every frame. So only the rat's body casts a shadow: the head, ears, eyes and
+## tail that sway while it sniffs, and the centimetre-sized cockroaches, do not.
+func _mi(parent: Node3D, mesh: Mesh, mat: Material, pos: Vector3, scl := Vector3.ONE, shadow := false) -> MeshInstance3D:
 	var m := MeshInstance3D.new()
 	m.mesh = mesh
 	m.material_override = mat
 	m.position = pos
 	m.scale = scl
-	m.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+	m.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if shadow else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	m.visibility_range_end = 22.0
 	parent.add_child(m)
 	return m
@@ -107,7 +110,7 @@ func _mi(parent: Node3D, mesh: Mesh, mat: Material, pos: Vector3, scl := Vector3
 func _spawn_rat(area: Dictionary) -> Dictionary:
 	var n := Node3D.new()
 	add_child(n)
-	var body := _mi(n, rat_mesh["body"], rat_mesh["fur"], Vector3(0, 0.042, 0), Vector3(1.0, 0.8, 2.2))
+	var body := _mi(n, rat_mesh["body"], rat_mesh["fur"], Vector3(0, 0.042, 0), Vector3(1.0, 0.8, 2.2), true)
 	var head := Node3D.new()
 	head.position = Vector3(0, 0.048, -0.12)
 	n.add_child(head)

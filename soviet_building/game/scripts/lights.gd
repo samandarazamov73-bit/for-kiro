@@ -123,7 +123,7 @@ func set_room(room: String, on: bool, _sound := true) -> void:
 	grp["on"] = on
 	for l in grp["lights"]:
 		l.visible = on
-		if not on:
+		if not on and l.shadow_enabled:
 			l.shadow_enabled = false
 	for m in grp["fixtures"]:
 		if m is GeometryInstance3D:
@@ -188,12 +188,15 @@ func _update_shadows(pp: Vector3) -> void:
 	var want := {}
 	for i in min(max_shadows, cand.size()):
 		want[cand[i][1]] = true
+	# Only touch lights whose shadow actually switches: setting shadow_enabled, even to the value it
+	# already has, makes Godot redraw the light's whole shadow cube (6 views of the building).
 	for l in shadowed:
-		if is_instance_valid(l) and not want.has(l):
+		if is_instance_valid(l) and not want.has(l) and l.shadow_enabled:
 			l.shadow_enabled = false
 	shadowed = []
 	for l in want:
-		l.shadow_enabled = true
+		if not l.shadow_enabled:
+			l.shadow_enabled = true
 		shadowed.append(l)
 
 

@@ -144,6 +144,9 @@ func _build_chair() -> void:
 		wheel.material_override = rubber
 		wheel.rotation.z = PI / 2
 		wheel.position = Vector3(0.34 * sx, 0.3, 0.08)
+		# like the rest of the chair: a shadow caster that moves with the player would make every
+		# nearby lamp redraw its shadow cube on every frame of driving
+		wheel.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		chair.add_child(wheel)
 		var rim := MeshInstance3D.new()
 		var rm := TorusMesh.new()
@@ -153,6 +156,7 @@ func _build_chair() -> void:
 		rim.material_override = _mat(Color(0.7, 0.72, 0.74), 0.25, 1.0)
 		rim.rotation.z = PI / 2
 		rim.position = Vector3(0.38 * sx, 0.3, 0.08)
+		rim.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		chair.add_child(rim)
 		_box(chair, Vector3(0.1, 0.08, 0.25), Vector3(0.09 * sx, 0.12, -0.6), _mat(Color(0.16, 0.1, 0.06), 0.6))
 	# legs under a plaid blanket: two rounded thighs and the blanket hanging over the knees
@@ -192,6 +196,7 @@ func _build_chair() -> void:
 	knob.mesh = sm
 	knob.material_override = _mat(Color(0.04, 0.04, 0.04), 0.3)
 	knob.position = Vector3(0, 0.065, 0)
+	knob.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	stick.add_child(knob)
 	var led := _box(chair, Vector3(0.012, 0.004, 0.012), Vector3(0.255, 0.811, -0.19), StandardMaterial3D.new())
 	var lm: StandardMaterial3D = led.material_override
