@@ -403,19 +403,20 @@ func _build_occluders_and_ranges() -> void:
 		if sk.begins_with(("Fix_")) or sk.begins_with("Shell") or sk.begins_with("Stair") or sk.begins_with("Lift"):
 			continue
 		# Small things and furniture are not drawn far away (occlusion by the walls hides most of them anyway).
-		# They used to vanish at 12 and 32 m with a visible pop; now they are kept much farther and fade out
-		# smoothly (Godot draws them with transparency only while they fade). Up close every mesh also uses
+		# They used to vanish at 12 and 32 m with a visible pop; now they are kept to 25 and 45 m and fade out
+		# smoothly (Godot draws them with transparency only while they fade). Farther still cost too much on a
+		# MacBook: every piece of furniture in range also draws into the moon's shadow. Up close every mesh also uses
 		# Godot's automatic LODs: fewer triangles the smaller it is on screen.
 		var aabb: AABB = mi.get_aabb()
 		var sz: float = aabb.size.length()
 		if sz < 0.45:
-			mi.visibility_range_end = 30.0
-			mi.visibility_range_end_margin = 6.0
+			mi.visibility_range_end = 25.0
+			mi.visibility_range_end_margin = 5.0
 			mi.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_SELF
 			ranged += 1
 		elif sz < 2.6 and aabb.position.length() < 6.0:
-			mi.visibility_range_end = 70.0
-			mi.visibility_range_end_margin = 10.0
+			mi.visibility_range_end = 45.0
+			mi.visibility_range_end_margin = 8.0
 			mi.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_SELF
 			ranged += 1
 	stats["occluders"] = occ
