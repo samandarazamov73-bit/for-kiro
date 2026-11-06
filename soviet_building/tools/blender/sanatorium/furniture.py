@@ -199,7 +199,7 @@ def armchair(region="upholstery_brown"):
     mb = MB("armchair")
     w, d = 0.7, 0.75
     cushion(mb, -w / 2 + 0.07, w / 2 - 0.07, -d / 2 + 0.02, d / 2 - 0.13, 0.22, 0.44, region, 0.04, ("-x", "+x"))
-    cushion(mb, -w / 2 + 0.07, w / 2 - 0.07, d / 2 - 0.17, d / 2 - 0.02, 0.3, 0.86, region, 0.045, ("-x", "+x"))
+    cushion(mb, -w / 2 + 0.07, w / 2 - 0.07, d / 2 - 0.17, d / 2 - 0.02, 0.3, 0.86, region, 0.045)   # ends show above the arms
     bx(mb, -w / 2 + 0.07, w / 2 - 0.07, -d / 2 + 0.04, d / 2 - 0.04, 0.16, 0.22, {"*": "wood_dark"}, ("-y", "+y"))
     for x0, x1 in ((-w / 2, -w / 2 + 0.07), (w / 2 - 0.07, w / 2)):
         bx(mb, x0, x1, -d / 2, d / 2, 0.2, 0.6, {"*": "wood_plain"}, ("-x", "+x", "-y", "+y", "+z", "-z"))
@@ -232,7 +232,7 @@ def _sofa(w=1.8, region="upholstery_green"):
     for k in range(2):
         a = -inner / 2 + k * inner / 2
         cushion(mb, a + 0.004, a + inner / 2 - 0.004, d / 2 - 0.22, d / 2 - 0.02, 0.32, 0.9, region, 0.05,
-                ("-x", "+x"))
+                ("+x",) if k == 0 else ("-x",))      # the outer ends show above the arm panels
     bx(mb, -inner / 2, inner / 2, -d / 2 + 0.04, d / 2 - 0.04, 0.12, 0.2, {"*": "wood_dark"}, ("-y", "+y"))
     for x0, x1 in ((-w / 2, -w / 2 + 0.1), (w / 2 - 0.1, w / 2)):
         bx(mb, x0, x1, -d / 2, d / 2, 0.12, 0.62, {"*": "wood_plain"}, ("-x", "+x", "-y", "+y", "+z", "-z"))

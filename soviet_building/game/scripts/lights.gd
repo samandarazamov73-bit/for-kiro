@@ -102,6 +102,9 @@ func setup(g) -> void:
 		add_child(l)
 		l.global_position = game._v3(f["pos"])
 		l.set_meta("base_energy", l.light_energy)
+		# table lamps, floor lamps and sconces never get a shadow: inside their shade it only cut sharp
+		# wedges and stray lines of light on the walls and ceiling (and beams in the fog)
+		l.set_meta("no_shadow", kind == "lamp")
 		grp["lights"].append(l)
 		all_lights.append({"light": l, "room": f["room"]})
 		var flicker: bool = f["state"] == "flicker"
@@ -251,7 +254,7 @@ func _update_shadows(pp: Vector3) -> void:
 	var cand := []
 	for e in all_lights:
 		var l: OmniLight3D = e["light"]
-		if not l.visible:
+		if not l.visible or l.get_meta("no_shadow", false):
 			continue
 		var d: float = pp.distance_to(l.global_position)
 		if d < SHADOW_DIST and abs(l.global_position.y - pp.y) < 4.5:

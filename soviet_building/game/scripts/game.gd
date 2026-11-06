@@ -325,6 +325,11 @@ func _tune_materials() -> void:
 			if nm in ["M_Atlas_Furniture", "M_Metal_Painted", "M_Metal_DarkSteel"]:
 				m.metallic = 0.35
 				m.metallic_specular = 0.5
+			# Furniture is built from open boxes and single sheets (screens, partitions, backs that stand
+			# against a wall), doors and signs from thin panels: drawn from one side only, such a part vanished
+			# when seen from behind and left holes. Drawn from both sides (Godot flips the normal on the back).
+			if nm in ["M_Atlas_Furniture", "M_Wood_DoorDark", "M_Atlas_Signs"]:
+				m.cull_mode = BaseMaterial3D.CULL_DISABLED
 			if nm in GRIME_WALL:
 				# triplanar UV v = -(y * scale.y + offset.y): one texture height per storey, the bottom row at floor level
 				_grime(m, g_wall, Vector3(1.0 / 12.0, 1.0 / STOREY, 1.0 / 12.0), Vector3(0.0, -FIRST_FLOOR / STOREY, 0.0))

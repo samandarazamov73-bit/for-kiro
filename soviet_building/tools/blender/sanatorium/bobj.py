@@ -69,8 +69,10 @@ def soften(me, width=0.01, segments=2, bevel_above=50.0, smooth_below=50.0):
 
     def wide(f):            # thin parts (legs, rails, hooks, buttons) stay as they are: rounding them shows
         return min(e.calc_length() for e in f.edges) > 0.035     # no difference and only costs triangles
+    # glowing lamp shades and lamp glass stay as they are: a bevel shows on them as dark seams
+    glow = {i for i, m in enumerate(me.materials) if m and ("Emissive" in m.name or "Lamp_Off" in m.name)}
     edges = [e for e in bm.edges if e.is_manifold and e.calc_face_angle(0.0) > lim
-             and all(wide(f) for f in e.link_faces)]
+             and all(wide(f) and f.material_index not in glow for f in e.link_faces)]
     if edges and width > 0.0:
         bmesh.ops.bevel(bm, geom=edges, offset=width, offset_type="OFFSET", segments=segments, profile=0.5,
                         affect="EDGES", clamp_overlap=True, loop_slide=True)
