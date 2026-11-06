@@ -254,54 +254,109 @@ func _bench(args: Array) -> void:
 			levels = [clampi(int(String(a).substr(10)), 0, 2)]
 	DisplayServer.window_set_vsync_mode(DisplayServer.VSYNC_DISABLED)
 	Engine.max_fps = 0
-	var pl = game.player
 	game.hud.room_label.visible = false
 	game.lights.set_room("L1.F2", true)
 	game.lights.set_room("L1.EB_HALL", true)
 	print("BENCH window %s, driver %s, GPU %s" % [str(get_window().size), RenderingServer.get_current_rendering_driver_name(),
 		RenderingServer.get_video_adapter_name()])
+	RenderingServer.viewport_set_measure_render_time(get_viewport().get_viewport_rid(), true)
 	for q in levels:
 		game.quality.level = q
 		game.quality.apply()
 		var line := "BENCH %-8s 3D scale %.2f:" % [game.quality.NAMES[q], get_viewport().scaling_3d_scale]
 		var total := 0.0
 		for name in BENCH_SPOTS:
-			var s: Array = SHOTS[name]
-			var eye := Vector3(s[0].x, s[0].z, -s[0].y)
-			var tgt := Vector3(s[1].x, s[1].z, -s[1].y)
-			var dir := tgt - eye
-			place(Vector3(eye.x, eye.y - pl.EYE, eye.z), atan2(-dir.x, -dir.z))
-			pl.look_pitch = atan2(dir.y, Vector2(dir.x, dir.z).length())
-			pl.look_yaw = 0.0
+			_look_from(name)
 			await wait(2.0)
 			var m: Array = await _measure(4.0)
 			total += m[0]
-			line += "  %s %.1f (%d)" % [name, m[0], m[1]]
+			line += "  %s %s" % [name, _fmt(m)]
 			if name == "hall":
 				get_viewport().get_texture().get_image().save_png(out.path_join("bench_q%d_%s.png" % [q, name]))
 		line += "  | average %.1f fps" % (total / BENCH_SPOTS.size())
-		# driving down the lit ground-floor corridor: whatever moves with the chair (and the rats)
-		# can make the nearby lamps redraw their shadows, which the standing spots above never show
-		pl.speed_level = 4
-		place(Vector3(45.0, float(game.level["levels"][0]) + 0.02, -8.1), -PI / 2)
-		pl.look_pitch = 0.0
-		pl.look_yaw = 0.0
+		var md: Array = await _drive_measure()
+		print(line + "  | driving %s, %.1f m" % [_fmt(md), md[4]])
+	# what each effect costs on this GPU: Medium, with one thing changed at a time
+	for i in FEATURES.size():
+		_feature(i)
+		_look_from("hall")
 		await wait(2.0)
-		pl.input_override = Vector2(1.0, 0.0)
-		await wait(0.5)
-		var p1: Vector3 = pl.global_position
-		var md: Array = await _measure(3.0)
-		pl.input_override = Vector2.ZERO
-		print(line + "  | driving %.1f (%d), %.1f m" % [md[0], md[1], pl.global_position.distance_to(p1)])
-	print("BENCH numbers: fps (draw calls per frame spent on shadows)")
+		var mh: Array = await _measure(3.0)
+		var mdr: Array = await _drive_measure()
+		print("BENCH effect %-28s hall %s | driving %s" % [FEATURES[i], _fmt(mh), _fmt(mdr)])
+	print("BENCH numbers: fps (shadow draw calls per frame; GPU ms, CPU ms of rendering per frame)")
 	get_tree().quit(0)
 
 
-## Frames per second, and draw calls per frame spent on shadows, over t seconds.
+const FEATURES := ["Medium as is", "no volumetric fog", "no SSAO", "no glow", "moon shadow 2 splits",
+	"moon shadow off", "lamp shadows off", "lamps not lighting the fog", "3D resolution x0.7"]
+
+
+func _feature(i: int) -> void:
+	game.quality.level = 1
+	game.quality.apply()
+	game.env.glow_enabled = true
+	game.moon.shadow_enabled = true
+	game.moon.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_4_SPLITS
+	for e in game.lights.all_lights:
+		e["light"].light_volumetric_fog_energy = 0.5
+	match i:
+		1: game.env.volumetric_fog_enabled = false
+		2: game.env.ssao_enabled = false
+		3: game.env.glow_enabled = false
+		4: game.moon.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS
+		5: game.moon.shadow_enabled = false
+		6: game.lights.max_shadows = 0
+		7:
+			for e in game.lights.all_lights:
+				e["light"].light_volumetric_fog_energy = 0.0
+		8:
+			var vp := get_viewport()
+			vp.scaling_3d_mode = Viewport.SCALING_3D_MODE_FSR
+			vp.scaling_3d_scale = vp.scaling_3d_scale * 0.7
+
+
+func _look_from(name: String) -> void:
+	var pl = game.player
+	var s: Array = SHOTS[name]
+	var eye := Vector3(s[0].x, s[0].z, -s[0].y)
+	var tgt := Vector3(s[1].x, s[1].z, -s[1].y)
+	var dir := tgt - eye
+	place(Vector3(eye.x, eye.y - pl.EYE, eye.z), atan2(-dir.x, -dir.z))
+	pl.look_pitch = atan2(dir.y, Vector2(dir.x, dir.z).length())
+	pl.look_yaw = 0.0
+
+
+## Driving down the lit ground-floor corridor: whatever moves with the chair (and the rats) can make
+## the nearby lamps redraw their shadows, which standing still never shows. Appends the distance driven.
+func _drive_measure() -> Array:
+	var pl = game.player
+	pl.speed_level = 4
+	place(Vector3(45.0, float(game.level["levels"][0]) + 0.02, -8.1), -PI / 2)
+	pl.look_pitch = 0.0
+	pl.look_yaw = 0.0
+	await wait(2.0)
+	pl.input_override = Vector2(1.0, 0.0)
+	await wait(0.5)
+	var p1: Vector3 = pl.global_position
+	var m: Array = await _measure(3.0)
+	pl.input_override = Vector2.ZERO
+	m.append(pl.global_position.distance_to(p1))
+	return m
+
+
+func _fmt(m: Array) -> String:
+	return "%.1f (%d; %.1f, %.1f)" % [m[0], m[1], m[2], m[3]]
+
+
+## Frames per second, draw calls per frame spent on shadows, and the GPU and CPU time of rendering
+## per frame in ms, over t seconds.
 func _measure(t: float) -> Array:
 	var vp := get_viewport().get_viewport_rid()
 	var frames := 0
 	var shadow_draws := 0
+	var gpu := 0.0
+	var cpu := 0.0
 	var elapsed := 0.0
 	var t0 := Time.get_ticks_usec()
 	while elapsed < t:
@@ -310,4 +365,7 @@ func _measure(t: float) -> Array:
 		frames += 1
 		shadow_draws += RenderingServer.viewport_get_render_info(vp, RenderingServer.VIEWPORT_RENDER_INFO_TYPE_SHADOW,
 			RenderingServer.VIEWPORT_RENDER_INFO_DRAW_CALLS_IN_FRAME)
-	return [frames / ((Time.get_ticks_usec() - t0) / 1e6), shadow_draws / maxi(frames, 1)]
+		gpu += RenderingServer.viewport_get_measured_render_time_gpu(vp)
+		cpu += RenderingServer.viewport_get_measured_render_time_cpu(vp)
+	var n := maxi(frames, 1)
+	return [frames / ((Time.get_ticks_usec() - t0) / 1e6), shadow_draws / n, gpu / n, cpu / n]

@@ -2,7 +2,8 @@ name: Build Sanatorium game
 
 on:
   push:
-    branches: [sanatorium-game-release]
+    # mac-perf: build and check on the M1 runner, but do not touch the release
+    branches: [sanatorium-game-release, mac-perf]
     paths:
       - "soviet_building/game/**"
       - ".github/workflows/build-game.yml"
@@ -154,6 +155,7 @@ jobs:
             bench/
 
   release:
+    if: github.ref_name == 'sanatorium-game-release'
     needs: [build, mac-m1-check]
     runs-on: ubuntu-latest
     steps:
