@@ -144,8 +144,11 @@ def build_stair(room, top_level=3):
         flight(L, zm, -1, vB0, vB1, mb, mb, [(vB0, -1), (vB1, +1)])
         if ground:
             # close the low space under flight B / mid-landing towards the lobby (no head-height hazard)
-            L.poly([(uL, vB1, z), (CELL_U, vB1, z), (CELL_U, vB1, zm - 0.2), (uM, vB1, zm - 0.2),
-                    (uM, vB1, zm), (uL, vB1, zm + 1.45)], "plaster", (0, 1, 0), "uz")
+            # both faces: built one-sided, the panel was there from the lobby but invisible from the stairs
+            panel = [(uL, vB1, z), (CELL_U, vB1, z), (CELL_U, vB1, zm - 0.2), (uM, vB1, zm - 0.2),
+                     (uM, vB1, zm), (uL, vB1, zm + 1.45)]
+            L.poly(panel, "plaster", (0, 1, 0), "uz")
+            L.poly(panel, "plaster", (0, -1, 0), "uz")
         slab(L, uM, CELL_U, 0, vB1, zm, 0.2, "terrazzo", ["u0", "v1"])
         # well railings (inner side of both flights, joined across the well at the mid-landing)
         railing(L, rail, inf, [(uL, vA1 - 0.04, z + RISER), (uM, vA1 - 0.04, zm), (uM + 0.12, vA1 - 0.04, zm)])

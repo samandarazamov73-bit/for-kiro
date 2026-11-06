@@ -149,7 +149,7 @@ func _build_menu() -> void:
 func _center(c: Control) -> void:
 	await get_tree().process_frame
 	c.reset_size()
-	c.position = -c.size * 0.5
+	c.position = (c.get_parent_area_size() - c.size) * 0.5      # position is measured from the top-left corner
 
 
 func show_intro() -> void:
