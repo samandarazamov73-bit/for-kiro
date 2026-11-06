@@ -41,6 +41,9 @@ func setup(g) -> void:
 	rng.seed = 1982
 	var rng_flick := RandomNumberGenerator.new()
 	rng_flick.seed = 1983
+	var rng_dead := RandomNumberGenerator.new()
+	rng_dead.seed = 1984
+	var dead := 0
 	for f in game.level["fixtures"]:
 		var grp: Dictionary = _group(f["room"])
 		var mesh: Node = game.node(f["name"])
@@ -52,6 +55,16 @@ func setup(g) -> void:
 			if mesh is GeometryInstance3D and kind != "lamp":
 				mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		if f["state"] == "broken":
+			continue
+		# many more dead lamps than the plan had: about a quarter of the ceiling lights in rooms, a fifth in
+		# corridors and stairs (they stay walkable), a third of the chandeliers; their glass stays dark
+		var room_kind: String = game.rooms.get(f["room"], {}).get("kind", "")
+		var p_dead: float = 0.33 if kind == "pendant" else (0.2 if room_kind in ON_KINDS else 0.25)
+		if kind != "lamp" and rng_dead.randf() < p_dead:
+			if mesh is GeometryInstance3D:
+				grp["fixtures"].erase(mesh)
+				mesh.material_override = off_mat
+			dead += 1
 			continue
 		var l := OmniLight3D.new()
 		var col: Array = f["color"]
@@ -125,6 +138,7 @@ func setup(g) -> void:
 		add_child(p)
 		buzz_players.append(p)
 	game.stats["lights"] = all_lights.size()
+	game.stats["dead_lamps"] = dead
 	game.stats["flickering"] = flickers.size()
 
 

@@ -277,31 +277,31 @@ func _setup_environment() -> void:
 	add_child(moon)
 
 
-const GRIMY := ["M_Paint_WallBlue", "M_Paint_WallPeach", "M_Paint_WallBeige", "M_Plaster_White", "M_Ceiling_Paint",
-	"M_Linoleum_Brown", "M_Linoleum_Parquet", "M_Terrazzo", "M_Tile_WallWhite", "M_Tile_FloorCeramic",
-	"M_Wallpaper_Geometric", "M_Wallpaper_Floral", "M_Concrete_Interior", "M_Wood_DoorDark"]
+# Grime that follows causes instead of being sprinkled evenly (textures made by tools/grime_gen.py). The wall
+# mask is one storey high and lined up with the floors (they are exactly 3.3 m apart, the lowest at 1.2 m):
+# a dirty band and scuffs at the bottom of the walls, leak stains with tide marks and drips coming down
+# from the ceiling, a dusty line under it, old slightly uneven paint in between. Ceilings get a few
+# yellowed leak stains, floors a faint unevenness. Doors are left out: they turn, and grime laid in world
+# space would slide over them.
+const GRIME_WALL := ["M_Paint_WallBlue", "M_Paint_WallPeach", "M_Paint_WallBeige", "M_Plaster_White",
+	"M_Tile_WallWhite", "M_Wallpaper_Geometric", "M_Wallpaper_Floral", "M_Concrete_Interior"]
+const GRIME_CEILING := ["M_Ceiling_Paint"]
+const GRIME_FLOOR := ["M_Linoleum_Brown", "M_Linoleum_Parquet", "M_Terrazzo", "M_Tile_FloorCeramic"]
+const STOREY := 3.3
+const FIRST_FLOOR := 1.2
 
 
-## Soft old stains for walls, floors and ceilings: mostly clean, here and there a faint darker patch.
-func _grime_texture() -> NoiseTexture2D:
-	var n := FastNoiseLite.new()
-	n.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
-	n.frequency = 0.009
-	n.fractal_octaves = 6
-	n.fractal_gain = 0.6
-	n.seed = 1974
-	var ramp := Gradient.new()
-	ramp.set_color(0, Color(0.74, 0.69, 0.6))
-	ramp.set_offset(0, 0.16)
-	ramp.set_color(1, Color(1.0, 1.0, 1.0))
-	ramp.set_offset(1, 0.52)
-	var tex := NoiseTexture2D.new()
-	tex.width = 512
-	tex.height = 512
-	tex.seamless = true
-	tex.noise = n
-	tex.color_ramp = ramp
-	return tex
+func _grime(m: BaseMaterial3D, tex: Texture2D, scale: Vector3, offset: Vector3) -> void:
+	m.detail_enabled = true
+	m.detail_blend_mode = BaseMaterial3D.BLEND_MODE_MUL
+	m.detail_albedo = tex
+	m.detail_uv_layer = BaseMaterial3D.DETAIL_UV_2
+	m.uv2_triplanar = true
+	m.uv2_world_triplanar = true
+	m.uv2_triplanar_sharpness = 8.0
+	m.uv2_scale = scale
+	m.uv2_offset = offset
+	m.roughness = minf(1.0, m.roughness + 0.06)
 
 
 ## Indoors there is no sky to reflect, so fully metallic atlas regions would render black: tone metal down.
@@ -309,7 +309,9 @@ func _grime_texture() -> NoiseTexture2D:
 ## lamp glass glows less, and window glass is a little dirty, so it no longer reads as an invisible wall.
 func _tune_materials() -> void:
 	var seen := {}
-	var grime := _grime_texture()
+	var g_wall: Texture2D = load("res://assets/grime_wall.png")
+	var g_ceiling: Texture2D = load("res://assets/grime_ceiling.png")
+	var g_floor: Texture2D = load("res://assets/grime_floor.png")
 	for key in nodes:
 		var mi = nodes[key]
 		if not (mi is MeshInstance3D) or mi.mesh == null:
@@ -323,15 +325,13 @@ func _tune_materials() -> void:
 			if nm in ["M_Atlas_Furniture", "M_Metal_Painted", "M_Metal_DarkSteel"]:
 				m.metallic = 0.35
 				m.metallic_specular = 0.5
-			if nm in GRIMY:
-				m.detail_enabled = true
-				m.detail_blend_mode = BaseMaterial3D.BLEND_MODE_MUL
-				m.detail_albedo = grime
-				m.detail_uv_layer = BaseMaterial3D.DETAIL_UV_2
-				m.uv2_triplanar = true
-				m.uv2_world_triplanar = true
-				m.uv2_scale = Vector3(0.28, 0.28, 0.28)
-				m.roughness = minf(1.0, m.roughness + 0.08)
+			if nm in GRIME_WALL:
+				# triplanar UV v = -(y * scale.y + offset.y): one texture height per storey, the bottom row at floor level
+				_grime(m, g_wall, Vector3(1.0 / 12.0, 1.0 / STOREY, 1.0 / 12.0), Vector3(0.0, -FIRST_FLOOR / STOREY, 0.0))
+			elif nm in GRIME_CEILING:
+				_grime(m, g_ceiling, Vector3(1.0 / 10.0, 1.0, 1.0 / 10.0), Vector3.ZERO)
+			elif nm in GRIME_FLOOR:
+				_grime(m, g_floor, Vector3(1.0 / 10.0, 1.0, 1.0 / 10.0), Vector3.ZERO)
 			elif nm.begins_with("M_Emissive_"):
 				m.emission_energy_multiplier *= 0.45
 			elif nm == "M_Glass_Clear":
