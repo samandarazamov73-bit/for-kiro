@@ -47,6 +47,10 @@ func setup(g) -> void:
 		var kind: String = f["kind"]
 		if mesh != null:
 			grp["fixtures" if kind != "lamp" else "glows"].append(mesh)
+			# The shade sits around the bulb, so its own shadow is never seen, but every flicker swaps its
+			# material, and a shadow caster that changes makes the nearby lamps redraw their shadow cubes.
+			if mesh is GeometryInstance3D and kind != "lamp":
+				mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		if f["state"] == "broken":
 			continue
 		var l := OmniLight3D.new()
