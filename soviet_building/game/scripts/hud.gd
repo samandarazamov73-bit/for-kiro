@@ -5,6 +5,7 @@ extends CanvasLayer
 var prompt_label: Label
 var msg_label: Label
 var room_label: Label
+var debug_label: Label
 var speed_bars := []
 var intro: Control
 var menu: Control
@@ -31,6 +32,38 @@ void fragment() {
 }
 """
 
+# Medium and High: the picture as seen through an old film lens: a slight barrel distortion (straight lines
+# bow out a little towards the edges), chromatic aberration growing towards the corners, vignette and grain
+# (costs one copy of the screen per frame).
+const LENS_SHADER := """
+shader_type canvas_item;
+uniform sampler2D screen_tex : hint_screen_texture, repeat_disable, filter_linear;
+uniform float vignette = 0.66;
+uniform float grain = 0.055;
+uniform float aberration = 0.0015;      // about 5 px in the corners of a 2K picture
+uniform float barrel = 0.035;           // corners stay where they are, the middle is 3.5 % larger
+float hash(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
+void fragment() {
+	vec2 d = SCREEN_UV - 0.5;
+	float aspect = SCREEN_PIXEL_SIZE.y / SCREEN_PIXEL_SIZE.x;
+	vec2 p = d * vec2(aspect, 1.0);
+	float r2 = dot(p, p) / (0.25 * aspect * aspect + 0.25);
+	vec2 uv0 = 0.5 + d * (1.0 + barrel * r2) / (1.0 + barrel);
+	vec2 off = d * aberration * r2 * 4.0;
+	vec3 col = vec3(texture(screen_tex, uv0 + off).r, texture(screen_tex, uv0).g,
+		texture(screen_tex, uv0 - off).b);
+	vec2 uv = UV - 0.5;
+	uv.x *= 1.6;
+	float v = smoothstep(0.35, 0.95, length(uv)) * vignette;
+	float n = hash(floor(FRAGCOORD.xy * 0.75) + floor(TIME * 24.0) * vec2(1.7, 3.1));
+	col += (n - 0.5) * 2.0 * grain * (1.0 - v);
+	COLOR = vec4(col * (1.0 - v), 1.0);
+}
+"""
+var _fx: ColorRect
+var _overlay_mat: ShaderMaterial
+var _lens_mat: ShaderMaterial
+
 
 func _ready() -> void:
 	layer = 10
@@ -40,10 +73,15 @@ func _ready() -> void:
 	fx.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var sh := Shader.new()
 	sh.code = GRAIN_SHADER
-	var sm := ShaderMaterial.new()
-	sm.shader = sh
-	fx.material = sm
+	_overlay_mat = ShaderMaterial.new()
+	_overlay_mat.shader = sh
+	var lsh := Shader.new()
+	lsh.code = LENS_SHADER
+	_lens_mat = ShaderMaterial.new()
+	_lens_mat.shader = lsh
+	fx.material = _overlay_mat
 	add_child(fx)
+	_fx = fx
 	var dot := ColorRect.new()
 	dot.color = Color(1, 1, 1, 0.55)
 	dot.size = Vector2(4, 4)
@@ -80,6 +118,13 @@ func _ready() -> void:
 		sp.add_child(b)
 		speed_bars.append(b)
 	set_speed(2, 5)
+	# F3: where you are (room, coordinates, frame rate), for screenshots of anything that looks wrong
+	debug_label = _label(15, Color(0.8, 1.0, 0.8))
+	debug_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	debug_label.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	debug_label.position = Vector2(-620, 16)
+	debug_label.size = Vector2(600, 60)
+	debug_label.visible = false
 	_build_menu()
 
 
@@ -96,7 +141,7 @@ func _label(size: int, col: Color) -> Label:
 	return l
 
 
-const CONTROLS := "W / S — вперёд / назад     A / D — поворот\nМышь — смотреть по сторонам     E или ЛКМ — открыть, нажать\nКолесо мыши или Q / R — скорость коляски (1–5)     H — гудок\nF11 (Mac: Ctrl+Cmd+F) — полный экран     G — качество графики     L — не больше 30 кадров/с     Esc — пауза"
+const CONTROLS := "W / S — вперёд / назад     A / D — поворот\nМышь — смотреть по сторонам     E или ЛКМ — открыть, нажать\nКолесо мыши или Q / R — скорость коляски (1–5)     H — гудок     F3 — где я\nF11 (Mac: Ctrl+Cmd+F) — полный экран     G — качество графики     L — не больше 30 кадров/с     Esc — пауза"
 
 
 func _panel(title: String, body: String) -> PanelContainer:
@@ -159,6 +204,12 @@ func show_intro() -> void:
 	_intro_t = 14.0
 
 
+## quality.gd: the lens look on Medium and High, the plain overlay on Low.
+func set_lens(on: bool) -> void:
+	if _fx:
+		_fx.material = _lens_mat if on else _overlay_mat
+
+
 func menu_open() -> bool:
 	return menu.visible
 
@@ -201,6 +252,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		intro.visible = false
 	if event.is_action_pressed("pause"):
 		toggle_menu()
+	elif event.is_action_pressed("debug_info"):
+		debug_label.visible = not debug_label.visible
 
 
 func set_prompt(s: String) -> void:
@@ -226,6 +279,13 @@ func set_speed(level: int, n: int) -> void:
 
 
 func _process(dt: float) -> void:
+	if debug_label.visible:
+		var g = get_parent()
+		if g.player:
+			var p: Vector3 = g.player.global_position
+			var r: Dictionary = g.room_at(p + Vector3(0, 0.3, 0))
+			debug_label.text = "%s  %s\nx %.1f  y %.1f  z %.1f   %d fps" % [r.get("id", "?"), r.get("name", ""), p.x, p.y, p.z,
+				Engine.get_frames_per_second()]
 	if _msg_t > 0.0:
 		_msg_t -= dt
 		msg_label.modulate.a = clamp(_msg_t / 0.6, 0.0, 1.0)

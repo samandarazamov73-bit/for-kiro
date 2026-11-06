@@ -586,7 +586,8 @@ def kitchen(c):
     c.wall("R", 3.4, "prep_table")
     c.wall("L", 4.8, "kitchen_sink")
     c.wall("R", 5.2, "dish_rack")
-    c.at("duct", c.W / 2, 2.1, "+u", z=CEIL_H - 0.45, check=False)
+    # exhaust canopy over the stoves, its duct up into the ceiling (a duct hanging across the room ended in mid-air)
+    c.wall("L", 2.1, "kitchen_hood", z=2.0, check=False)
     c.decorate(["menu_board", "electro_warning"], 1.5, ("B",))
 
 

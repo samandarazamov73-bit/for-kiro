@@ -49,6 +49,7 @@ var look_yaw := 0.0
 var look_pitch := -0.08
 var look_idle := 0.0
 var shake := 0.0
+var _lean := 0.0
 var t := 0.0
 var braked := true
 var input_override = null
@@ -393,11 +394,14 @@ func _eye(xf: Transform3D) -> Transform3D:
 	return xf * Transform3D(Basis.from_euler(Vector3(look_pitch, look_yaw, 0.0)), HEAD_POS)
 
 
-func _process(_dt: float) -> void:
+func _process(dt: float) -> void:
 	# every rendered frame: the latest mouse look and the chair's position interpolated between physics ticks
 	head.global_transform = _eye(get_global_transform_interpolated())
 	var vib: float = clamp(abs(v) / SPEEDS[-1], 0.0, 1.0)
 	cam.position = Vector3(randf_range(-1, 1) * shake, sin(t * 23.0) * 0.0018 * vib + randf_range(-1, 1) * shake, 0.0)
+	# a person, not a tripod: slow breathing and a slight lean of the head into turns (well under a degree)
+	_lean = lerpf(_lean, -w * 0.011, minf(1.0, dt * 4.0))
+	cam.rotation = Vector3(sin(t * 1.45) * 0.0022 + sin(t * 0.37) * 0.0012, sin(t * 0.61) * 0.0015, _lean)
 
 
 func _update_target() -> void:

@@ -116,10 +116,37 @@ func setup(g) -> void:
 		if kind == "fluo":
 			fluo.append({"pos": l.global_position, "room": f["room"], "light": l})
 	_balance_rooms()
+	var unlit := {}
+	for room in groups:
+		if groups[room]["lights"].is_empty():
+			unlit[room] = true
+	var desk_lamps := 0
 	for gl in game.level["glows"]:
 		var m: Node = game.node(gl["name"])
 		if m != null:
 			_group(gl["room"])["glows"].append(m)
+		# A desk lamp in a room whose ceiling lights are all dead glowed with nothing lit around it, a bright
+		# patch hanging in the dark. In those rooms the desk lamps really light: a small warm lamp at the shade.
+		if m is VisualInstance3D and unlit.has(gl["room"]):
+			var box: AABB = m.get_aabb()
+			var l := OmniLight3D.new()
+			l.light_color = Color(1.0, 0.78, 0.5)
+			l.light_energy = 0.55
+			l.omni_range = 3.5
+			l.omni_attenuation = 1.2
+			l.light_specular = 0.3
+			l.light_volumetric_fog_energy = 0.3
+			l.distance_fade_enabled = true
+			l.distance_fade_begin = 30.0
+			l.distance_fade_length = 12.0
+			add_child(l)
+			l.global_position = m.global_transform * (box.position + box.size * Vector3(0.5, 0.75, 0.5))
+			l.set_meta("base_energy", l.light_energy)
+			l.set_meta("no_shadow", true)
+			_group(gl["room"])["lights"].append(l)
+			all_lights.append({"light": l, "room": gl["room"]})
+			desk_lamps += 1
+	game.stats["desk_lamps_in_dark_rooms"] = desk_lamps
 	for s in game.level["switches"]:
 		_group(s["room"])["has_switch"] = true
 	for room in groups:

@@ -163,6 +163,65 @@ def opening_linings(lay, mb):
         reveal(mb, e, g.c - g.ow / 2, g.c + g.ow / 2, g.z0, g.z1, depth, "plaster", sides)
 
 
+def narrow_portals(lay, mb, limit=1.0, head=2.3, T=0.12):
+    """Where two rectangles of one room meet over less than `limit` (only the 0.9 m passage from the entrance hall
+    past the vestibule; the 1.16 m entries beside the bathroom pods stay open), there is no wall at all and the
+    opening read as walls that fail to meet. Such a junction gets what a builder would put there: a lintel
+    down to `head` above the floor, wood linings on the jambs and under the lintel, and casings where the
+    wall continues past the opening."""
+    from .doors import CASE_W, CASE_T
+    wu0, wv0, wu1, wv1 = FURN_UV["wood_dark"]
+    wood = [(wu0, wv0), (wu1, wv0), (wu1, wv1), (wu0, wv1)]
+    for room in lay.rooms.values():
+        q = room.rects
+        for i in range(len(q)):
+            for j in range(len(q)):
+                A, B = q[i], q[j]          # A: the narrow passage, B: the room it opens into
+                for ax in (0, 1):          # 0: junction plane x = X, 1: plane y = Y
+                    a0, a1 = (A[0], A[1]) if ax == 0 else (A[2], A[3])
+                    b0, b1 = (B[0], B[1]) if ax == 0 else (B[2], B[3])
+                    s_a = (A[2], A[3]) if ax == 0 else (A[0], A[1])
+                    s_b = (B[2], B[3]) if ax == 0 else (B[0], B[1])
+                    if abs(a1 - b0) < 1e-4:
+                        X, k = a1, 1
+                    elif abs(b1 - a0) < 1e-4:
+                        X, k = a0, -1
+                    else:
+                        continue
+                    lo, hi = max(s_a[0], s_b[0]), min(s_a[1], s_b[1])
+                    # only a real passage: A is no wider than the junction, and the junction is narrow
+                    if not (0.5 < hi - lo < limit) or s_a[1] - s_a[0] > hi - lo + 1e-4:
+                        continue
+                    z0, zb, z1 = room.z0, room.z0 + head, room.z0 + CEIL_H
+
+                    def P(d, s_, z):           # d: offset from the plane towards B
+                        return (X + k * d, s_, z) if ax == 0 else (s_, X + k * d, z)
+
+                    def N(d, ds, dz):
+                        return (k * d, ds, dz) if ax == 0 else (ds, k * d, dz)
+                    wall_uv_ = lambda pts: [((p_[1] if ax == 0 else p_[0]) / 3.0, (p_[2] - z0) / 3.0) for p_ in pts]
+                    for d, sg in ((0.0, 1), (-T, -1)):        # lintel faces on both sides, painted like the walls
+                        pts = [P(d, lo, zb), P(d, hi, zb), P(d, hi, z1), P(d, lo, z1)]
+                        mb.poly_n(pts, wall_uv_(pts), room.wall, N(sg, 0, 0))
+                    # wood linings under the lintel and on the jambs (4 mm proud of the side walls)
+                    mb.poly_n([P(-T, lo, zb), P(CASE_T, lo, zb), P(CASE_T, hi, zb), P(-T, hi, zb)], wood,
+                              "atlas_furn", (0, 0, -1))
+                    for s_, ds in ((lo + 0.004, 1), (hi - 0.004, -1)):
+                        mb.poly_n([P(-T, s_, z0), P(CASE_T, s_, z0), P(CASE_T, s_, zb), P(-T, s_, zb)], wood,
+                                  "atlas_furn", N(0, ds, 0))
+                    # casings: B's wall continues past the junction on a side -> jamb casing there; heads on both faces
+                    ext_lo, ext_hi = s_b[0] < lo - 0.05, s_b[1] > hi + 0.05
+                    c0, c1 = lo - (CASE_W if ext_lo else 0.0), hi + (CASE_W if ext_hi else 0.0)
+                    for d, sg, cl, ch in ((CASE_T, 1, c0, c1), (-T - CASE_T, -1, lo, hi)):
+                        mb.poly_n([P(d, cl, zb), P(d, ch, zb), P(d, ch, zb + CASE_W), P(d, cl, zb + CASE_W)], wood,
+                                  "atlas_furn", N(sg, 0, 0))
+                    for side, on in ((lo, ext_lo), (hi, ext_hi)):
+                        if on:
+                            sa, sb_ = (side - CASE_W, side) if side == lo else (side, side + CASE_W)
+                            mb.poly_n([P(CASE_T, sa, z0), P(CASE_T, sb_, z0), P(CASE_T, sb_, zb + CASE_W),
+                                       P(CASE_T, sa, zb + CASE_W)], wood, "atlas_furn", N(1, 0, 0))
+
+
 def pilasters(lay, level, mb):
     """0.4 x 0.4 frame columns on the corridor side of both corridor walls."""
     L = LEVELS[level]

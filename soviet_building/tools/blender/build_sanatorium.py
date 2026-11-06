@@ -143,6 +143,7 @@ class Build:
             self.add(p, level=i, group="Structure")
         lin = MB("OpeningLinings")
         architecture.opening_linings(lay, lin)
+        architecture.narrow_portals(lay, lin)
         per = {i: MB(f"OpeningLinings_L{i}") for i in range(4)}
         for f, m in zip(lin.f, lin.mi):
             z = min(lin.v[k][2] for k in f)

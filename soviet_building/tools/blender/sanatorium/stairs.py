@@ -1,14 +1,16 @@
 """U-shaped stairs (11 + 11 risers of 150/300 mm per storey) for the three stair cells.
 
-Concrete flights with terrazzo treads, landings and floor-level lobbies at each storey,
-well railings with alpha-textured balusters and a wooden handrail, wall handrail on the
-corridor side (handrails on both sides of every flight for accessibility)."""
+Concrete flights with terrazzo treads and nosings, landings and floor-level lobbies at each storey,
+well railings with steel balusters and a wooden handrail, wall handrail on the corridor side (handrails
+on both sides of every flight for accessibility), and a walled-in store room under the ground-floor
+flight."""
 from .params import *
 from .meshkit import MB
 from .stairs_layout import stair_frame, stair_spec, CELL_U, CELL_V
 from .atlas import FURN_UV, DECAL_UV
 
 RAIL_H = 0.90
+NOSE, NOSE_H = 0.03, 0.04      # step nosing overhang and depth
 
 
 class Local:
@@ -36,6 +38,9 @@ class Local:
             uvs = [(q[0] / 2.0, q[1] / 2.0) for q in pts]
         elif uvmode == "uz":
             uvs = [(q[0] / 2.0, q[2] / 2.0) for q in pts]
+        elif isinstance(uvmode, tuple):          # ("wall_u" | "wall_v", floor z): painted wall with its dado
+            k = 0 if uvmode[0] == "wall_u" else 1
+            uvs = [(q[k] / 3.0, (q[2] - uvmode[1]) / 3.0) for q in pts]
         else:
             uvs = [(q[1] / 2.0, q[2] / 2.0) for q in pts]
         self.mb.poly_n(P, uvs, mat, self.dirw(*want))
@@ -49,10 +54,18 @@ def flight(L, base, dirn, v0, v1, mb_walk, mb_side, sides, to_floor=False):
     for k in range(n):
         u = u0 + du * k
         za, zb = base + k * RISER, base + (k + 1) * RISER
-        L.poly([(u, v0, za), (u, v1, za), (u, v1, zb), (u, v0, zb)], "terrazzo", (-dirn, 0, 0), "vz")
+        L.poly([(u, v0, za), (u, v1, za), (u, v1, zb - NOSE_H), (u, v0, zb - NOSE_H)], "terrazzo", (-dirn, 0, 0), "vz")
         if k < n - 1:
             ua, ub = sorted((u, u + du))
             L.poly([(ua, v0, zb), (ub, v0, zb), (ub, v1, zb), (ua, v1, zb)], "terrazzo", (0, 0, 1))
+        # nosing: the tread overhangs the riser by 3 cm, so every step edge throws a shadow line
+        un = u - dirn * NOSE
+        L.poly([(un, v0, zb - NOSE_H), (un, v1, zb - NOSE_H), (un, v1, zb), (un, v0, zb)], "terrazzo", (-dirn, 0, 0), "vz")
+        L.poly([(un, v0, zb), (u, v0, zb), (u, v1, zb), (un, v1, zb)], "terrazzo", (0, 0, 1))
+        L.poly([(un, v0, zb - NOSE_H), (u, v0, zb - NOSE_H), (u, v1, zb - NOSE_H), (un, v1, zb - NOSE_H)], "plaster",
+               (0, 0, -1))
+        for v, want in ((v0, -1), (v1, 1)):
+            L.poly([(un, v, zb - NOSE_H), (u, v, zb - NOSE_H), (u, v, zb), (un, v, zb)], "terrazzo", (0, want, 0), "uz")
     # soffit: from the bottom nosing line to the landing underside
     ue = u0 + du * (n - 1)
     zt = base + n * RISER
@@ -90,7 +103,7 @@ def slab(L, u0, u1, v0, v1, z, t, mat_top, edges, bottom=True):
 
 
 def railing(L, mb_rail, mb_infill, pts, wall=False):
-    """Handrail through stair-local points (u, v, z_walk); balusters as an alpha panel below."""
+    """Handrail through stair-local points (u, v, z_walk), with steel balusters below it."""
     path = [L.p(u, v, z + RAIL_H) for (u, v, z) in pts]
     start = len(mb_rail.uv)
     mb_rail.tube(path, 0.025, "atlas_furn", sides=6, cap0=True, cap1=True)
@@ -98,21 +111,64 @@ def railing(L, mb_rail, mb_infill, pts, wall=False):
     mb_rail.uv[start:] = [(u0 + (u1 - u0) * min(max(u, 0), 1), v0 + (v1 - v0) * (v % 1.0)) for (u, v) in mb_rail.uv[start:]]
     if wall:
         return
-    u0, v0, u1, v1 = DECAL_UV["railing"]
+    # real painted-steel balusters (16 mm square, every 12 cm) on a bottom rail; they used to be an
+    # alpha-textured panel that read as a flat sheet from the side
     for a, b in zip(pts[:-1], pts[1:]):
         la = ((a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2) ** 0.5
-        if la < 0.2:
+        if la < 0.15:
             continue
-        q = [L.p(a[0], a[1], a[2] + 0.05), L.p(b[0], b[1], b[2] + 0.05), L.p(b[0], b[1], b[2] + RAIL_H - 0.03),
-             L.p(a[0], a[1], a[2] + RAIL_H - 0.03)]
-        # the railing region is tileable horizontally: repeat by stretching u inside the region is not
-        # possible in an atlas, so long runs are split into 0.5 m panels
-        n = max(1, int(round(la / 0.5)))
-        for k in range(n):
-            t0, t1 = k / n, (k + 1) / n
-            lerp = lambda P, Q, t: tuple(P[i] + (Q[i] - P[i]) * t for i in range(3))
-            qq = [lerp(q[0], q[1], t0), lerp(q[0], q[1], t1), lerp(q[3], q[2], t1), lerp(q[3], q[2], t0)]
-            mb_infill.poly(qq, [(u0, v0), (u1, v0), (u1, v1), (u0, v1)], "atlas_decal")
+        n = max(1, int(round(la / 0.12)))
+        for k in range(n + 1):
+            t = k / n
+            u, v, z = (a[i] + (b[i] - a[i]) * t for i in range(3))
+            x, y, _ = L.p(u, v, 0.0)
+            mb_infill.box(x - 0.008, x + 0.008, y - 0.008, y + 0.008, z + 0.06, z + RAIL_H - 0.03, "atlas_furn",
+                          faces=("-x", "+x", "-y", "+y"), uv="region", regions={"*": "black_plastic"})
+        bottom = [L.p(a[0], a[1], a[2] + 0.06), L.p(b[0], b[1], b[2] + 0.06)]
+        mb_infill.tube_region(bottom, 0.012, "black_plastic", 6, True, True)
+
+
+def under_stair_store(L, room, z, zm, vA1, vB0, vB1, uL, uM):
+    """Ground storey: the space under flight B and the mid-landing is walled in as a store room, as in real
+    stairwells: a painted 12 cm wall on the lobby side with a locked wooden door, and a wall under the flight
+    on the floor-landing side (it closes the well slit too). Painted like the room walls, dado included."""
+    from . import doors as D
+    t = 0.12
+    paint = room.wall
+    soff = lambda u: zm + (uM - u) / (uM - uL) * 1.45          # underside of flight B
+    # lobby wall (v = vB1, faces +v) with the door hole; inner face at vB1 - t (seen through the well slit)
+    dw, dh = 0.8 + 2 * D.GAP, 2.0
+    uc = uL + 1.05
+    d0, d1 = uc - dw / 2, uc + dw / 2
+    parts = [
+        [(uL, z), (d0, z), (d0, soff(d0)), (uL, soff(uL))],
+        [(d0, z + dh), (d1, z + dh), (d1, soff(d1)), (d0, soff(d0))],
+        [(d1, z), (CELL_U, z), (CELL_U, zm - 0.2), (uM, zm - 0.2), (uM, zm), (d1, soff(d1))],
+    ]
+    for shape in parts:
+        L.poly([(u, vB1, zz) for (u, zz) in shape], paint, (0, 1, 0), ("wall_u", z))
+    L.poly([(u, vB1 - t, zz) for (u, zz) in [(uL, z), (CELL_U, z), (CELL_U, zm - 0.2), (uM, zm - 0.2), (uM, zm),
+                                             (uL, soff(uL))]], "plaster", (0, -1, 0), "uz")
+    # landing-side wall (u = uL, faces -u) up to the floor landing's ceiling, from the well slit to the lobby
+    zc = z + FLOOR_H - SLAB_T
+    for uu, want, mat in ((uL, -1, paint), (uL + t, 1, "plaster")):
+        L.poly([(uu, vA1, z), (uu, vB1, z), (uu, vB1, zc), (uu, vA1, zc)], mat, (want, 0, 0),
+               ("wall_v", z) if mat == paint else "vz")
+    # locked store door: frame with casings and a closed leaf, mapped from door-local (x across, y into the wall)
+    stop = (D.LEAF_T, D.LEAF_T + D.STOP_T)
+    fr = D.frame_mesh(dw, dh, t, "atlas_furn", "wood_dark", stop)
+    inner = dw - 2 * D.GAP
+    lf = D.leaf_mesh(inner, dh - 0.006 - D.GAP, "wood", +1)
+    for mb_src, (ox, oz) in ((fr, (0.0, 0.0)), (lf, (-inner / 2, 0.006))):
+        for f, m in zip(mb_src.f, mb_src.mi):
+            pts = [(uc + mb_src.v[i][0] + ox, vB1 - mb_src.v[i][1], z + mb_src.v[i][2] + oz) for i in f]
+            P = [L.p(*q) for q in pts]
+            # door-local normal -> stair-local (x -> u, y -> -v) -> world
+            a, b, c = mb_src.v[f[0]], mb_src.v[f[1]], mb_src.v[f[2]]
+            nx = (b[1] - a[1]) * (c[2] - a[2]) - (b[2] - a[2]) * (c[1] - a[1])
+            ny = (b[2] - a[2]) * (c[0] - a[0]) - (b[0] - a[0]) * (c[2] - a[2])
+            nz = (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0])
+            L.mb.poly_n(P, [mb_src.uv[i] for i in f], mb_src.mats[m], L.dirw(nx, -ny, nz))
 
 
 def build_stair(room, top_level=3):
@@ -143,12 +199,7 @@ def build_stair(room, top_level=3):
         flight(L, z, +1, vA0, vA1, mb, mb, [(vA1, +1)])
         flight(L, zm, -1, vB0, vB1, mb, mb, [(vB0, -1), (vB1, +1)])
         if ground:
-            # close the low space under flight B / mid-landing towards the lobby (no head-height hazard)
-            # both faces: built one-sided, the panel was there from the lobby but invisible from the stairs
-            panel = [(uL, vB1, z), (CELL_U, vB1, z), (CELL_U, vB1, zm - 0.2), (uM, vB1, zm - 0.2),
-                     (uM, vB1, zm), (uL, vB1, zm + 1.45)]
-            L.poly(panel, "plaster", (0, 1, 0), "uz")
-            L.poly(panel, "plaster", (0, -1, 0), "uz")
+            under_stair_store(L, room, z, zm, vA1, vB0, vB1, uL, uM)
         slab(L, uM, CELL_U, 0, vB1, zm, 0.2, "terrazzo", ["u0", "v1"])
         # well railings (inner side of both flights, joined across the well at the mid-landing)
         railing(L, rail, inf, [(uL, vA1 - 0.04, z + RISER), (uM, vA1 - 0.04, zm), (uM + 0.12, vA1 - 0.04, zm)])

@@ -19,6 +19,10 @@ const MOON_SHADOW_DIST := [24.0, 32.0, 40.0]
 # The moon's shadow is redrawn every frame and was most of all shadow work (about 87 % of the shadow
 # draw calls in the hall). Two cascades instead of four: sharp up to about 8 m, softer beyond.
 const MOON_TWO_SPLITS := [true, true, false]
+# High only (too heavy for a fanless MacBook): reflections of the lamps in the polished terrazzo and
+# linoleum, and a camera lens that softly loses focus beyond about 15 m, as in a film.
+const SSR := [false, false, true]
+const DOF_FAR := [false, false, true]
 const SOFT_SHADOWS := [RenderingServer.SHADOW_QUALITY_SOFT_VERY_LOW, RenderingServer.SHADOW_QUALITY_SOFT_LOW,
 	RenderingServer.SHADOW_QUALITY_SOFT_LOW]
 
@@ -76,6 +80,20 @@ func apply() -> void:
 	env.volumetric_fog_enabled = fog_supported()
 	env.ssao_enabled = SSAO[level]
 	env.ssil_enabled = SSIL[level]
+	env.ssr_enabled = SSR[level]
+	env.ssr_max_steps = 40
+	env.ssr_fade_in = 0.15
+	env.ssr_fade_out = 2.0
+	env.ssr_depth_tolerance = 0.25
+	if game.player and game.player.cam:
+		var ca: CameraAttributesPractical = game.player.cam.attributes
+		if ca == null:
+			ca = CameraAttributesPractical.new()
+			ca.dof_blur_far_distance = 15.0
+			ca.dof_blur_far_transition = 12.0
+			ca.dof_blur_amount = 0.05
+			game.player.cam.attributes = ca
+		ca.dof_blur_far_enabled = DOF_FAR[level]
 	RenderingServer.environment_set_volumetric_fog_volume_size(FOG_SIZE[level][0], FOG_SIZE[level][1])
 	RenderingServer.positional_soft_shadow_filter_set_quality(SOFT_SHADOWS[level])
 	RenderingServer.directional_soft_shadow_filter_set_quality(SOFT_SHADOWS[level])
@@ -90,6 +108,8 @@ func apply() -> void:
 	get_viewport().positional_shadow_atlas_size = SHADOW_ATLAS[level]
 	if game.lights:
 		game.lights.max_shadows = SHADOWED_LAMPS[level]
+	if game.hud:
+		game.hud.set_lens(level >= 1)
 	_apply_scale()
 
 

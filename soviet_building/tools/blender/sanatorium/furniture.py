@@ -5,6 +5,7 @@ footprint x in [-w/2, w/2], y in [-d/2, d/2]. Detail lives in the atlas textures
 import math
 from .meshkit import MB
 from .atlas import FURN_UV, DECAL_UV
+from .params import CEIL_H
 
 A, DEC = "atlas_furn", "atlas_decal"
 
@@ -640,7 +641,18 @@ def boiler():
 
 def duct(length, w=0.6, h=0.4):
     mb = MB("duct")
-    bx(mb, -length / 2, length / 2, -w / 2, w / 2, 0, h, {"*": "aluminium"}, ("-y", "+y", "-z", "+z"))
+    bx(mb, -length / 2, length / 2, -w / 2, w / 2, 0, h, {"*": "aluminium"}, ("-x", "+x", "-y", "+y", "-z", "+z"))
+    return mb
+
+
+def kitchen_hood(length=3.4, depth=0.95, rise=0.6):
+    """Canopy hood over the row of stoves (back against the wall, +y), with its exhaust duct going up into the
+    ceiling; `rise` is the duct height above the canopy. Origin at the canopy's bottom edge."""
+    mb = MB("kitchen_hood")
+    L2, d2 = length / 2, depth / 2
+    bx(mb, -L2, L2, -d2, d2, 0.0, 0.22, {"*": "steel", "-z": "metal_grey"}, ("-x", "+x", "-y", "-z", "+z"))
+    bx(mb, -L2 + 0.25, L2 - 0.25, -d2 + 0.3, d2, 0.22, 0.4, {"*": "steel"}, ("-x", "+x", "-y", "+z"))
+    bx(mb, -0.3, 0.3, d2 - 0.45, d2, 0.4, 0.4 + rise, {"*": "aluminium"}, ("-x", "+x", "-y"))
     return mb
 
 
@@ -861,7 +873,7 @@ MODS = {
     "kitchen_sink": M(kitchen_sink, 1.2, 0.6), "crates": M(crate_stack, 0.6, 0.4), "sack": M(sack, 0.5, 0.36),
     "serving_line": M(serving_line, 2.4, 0.7), "dishwasher": M(dishwasher, 1.2, 0.8), "peeler": M(peeler, 0.56, 0.56),
     "workbench": M(workbench, 1.6, 0.7), "pump": M(pump_unit, 1.2, 0.6), "boiler": M(boiler, 0.76, 0.76),
-    "duct": M(lambda: duct(2.6), 2.6, 0.6), "locker": M(locker, 0.5, 0.5), "laundry_cart": M(laundry_cart, 0.8, 0.6),
+    "duct": M(lambda: duct(2.6), 2.6, 0.6), "kitchen_hood": M(lambda: kitchen_hood(rise=CEIL_H - 2.0 - 0.4), 3.4, 0.95), "locker": M(locker, 0.5, 0.5), "laundry_cart": M(laundry_cart, 0.8, 0.6),
     "bin": M(bin_, 0.56, 0.56), "toilet": M(toilet, 0.44, 0.5), "urinal": M(urinal, 0.4, 0.32),
     "cubicle": M(cubicle, 0.99, 1.4), "shower": M(shower, 0.9, 0.9), "grab_bar": M(grab_bar, 0.8, 0.07),
     "bathtub": M(bathtub, 0.7, 1.7), "projector": M(projector, 0.5, 0.9), "cinema_row": M(cinema_row, 4.16, 0.5),

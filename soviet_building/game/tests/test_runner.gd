@@ -163,13 +163,16 @@ func _run() -> void:
 	await wait(0.3)
 	await drive(1.0, 0.0, 2.5)
 	check(abs(pl.global_position.y - mn.y) < 0.12, "stairs are not climbable (y=%.2f, landing %.2f)" % [pl.global_position.y, mn.y])
-	# ground floor STAIR1: the invisible wall stands only in front of the first step, not on the open floor
+	# ground floor STAIR1: the invisible wall stands only in front of the first step; beside it the landing is
+	# open floor up to the wall of the store room under the flight (x = 31.5), which is solid
 	var space: PhysicsDirectSpaceState3D = game.get_world_3d().direct_space_state
 	var y0f: float = float(lv[0]) + 0.5
 	var at_steps: Dictionary = space.intersect_ray(PhysicsRayQueryParameters3D.create(Vector3(31.0, y0f, -6.0), Vector3(32.0, y0f, -6.0)))
-	var on_floor: Dictionary = space.intersect_ray(PhysicsRayQueryParameters3D.create(Vector3(31.0, y0f, -4.0), Vector3(32.0, y0f, -4.0)))
-	check(not at_steps.is_empty() and on_floor.is_empty(),
-		"STAIR1 ground floor: blocked at the steps, open floor free (%s / %s)" % [not at_steps.is_empty(), not on_floor.is_empty()])
+	var on_floor: Dictionary = space.intersect_ray(PhysicsRayQueryParameters3D.create(Vector3(30.3, y0f, -4.0), Vector3(31.4, y0f, -4.0)))
+	var store: Dictionary = space.intersect_ray(PhysicsRayQueryParameters3D.create(Vector3(31.0, y0f, -4.0), Vector3(32.0, y0f, -4.0)))
+	check(not at_steps.is_empty() and on_floor.is_empty() and not store.is_empty(),
+		"STAIR1 ground floor: blocked at the steps, landing free, store-room wall solid (%s / %s / %s)" % [
+			not at_steps.is_empty(), not on_floor.is_empty(), not store.is_empty()])
 	# turning on the spot against a wall never swings the footrest into it
 	place(Vector3(48.0, float(lv[0]) + 0.02, -8.1), 0.0)
 	await wait(0.3)

@@ -165,7 +165,7 @@ func _setup_input() -> void:
 		"drive_forward": [KEY_W, KEY_UP], "drive_back": [KEY_S, KEY_DOWN], "turn_left": [KEY_A, KEY_LEFT],
 		"turn_right": [KEY_D, KEY_RIGHT], "interact": [KEY_E, KEY_F], "horn": [KEY_H],
 		"speed_up": [KEY_EQUAL, KEY_KP_ADD, KEY_R], "speed_down": [KEY_MINUS, KEY_KP_SUBTRACT, KEY_Q],
-		"pause": [KEY_ESCAPE], "fullscreen": [KEY_F11], "quality": [KEY_G, KEY_F2], "fps_limit": [KEY_L],
+		"pause": [KEY_ESCAPE], "fullscreen": [KEY_F11], "quality": [KEY_G, KEY_F2], "fps_limit": [KEY_L], "debug_info": [KEY_F3],
 	}
 	for a in keys:
 		if not InputMap.has_action(a):
