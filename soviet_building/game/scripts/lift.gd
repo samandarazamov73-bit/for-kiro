@@ -76,7 +76,7 @@ func setup(g) -> void:
 	_fix_ropes(g)
 	cab_light = OmniLight3D.new()
 	cab_light.light_color = Color(1.0, 0.84, 0.62)
-	cab_light.light_energy = 0.55
+	cab_light.light_energy = 0.42
 	cab_light.omni_range = 3.2
 	cab_light.shadow_enabled = false
 	cabin.add_child(cab_light)

@@ -234,9 +234,9 @@ func _setup_environment() -> void:
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	# a darker, dirtier night than before: less fill light, dusty greenish air, washed-out sickly colours
 	env.ambient_light_color = Color(0.3, 0.34, 0.32)
-	env.ambient_light_energy = 0.09
+	env.ambient_light_energy = 0.07
 	env.tonemap_mode = Environment.TONE_MAPPER_AGX
-	env.tonemap_exposure = 1.05
+	env.tonemap_exposure = 0.9
 	env.ssao_enabled = true
 	env.ssao_radius = 1.2
 	env.ssao_intensity = 2.2
@@ -333,7 +333,7 @@ func _tune_materials() -> void:
 				m.uv2_scale = Vector3(0.28, 0.28, 0.28)
 				m.roughness = minf(1.0, m.roughness + 0.08)
 			elif nm.begins_with("M_Emissive_"):
-				m.emission_energy_multiplier *= 0.6
+				m.emission_energy_multiplier *= 0.45
 			elif nm == "M_Glass_Clear":
 				m.roughness = maxf(m.roughness, 0.22)
 				if m.transparency != BaseMaterial3D.TRANSPARENCY_DISABLED:
