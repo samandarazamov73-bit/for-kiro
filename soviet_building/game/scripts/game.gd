@@ -163,7 +163,7 @@ func sfx(name: String, loop := false) -> AudioStream:
 func _setup_input() -> void:
 	var keys := {
 		"drive_forward": [KEY_W, KEY_UP], "drive_back": [KEY_S, KEY_DOWN], "turn_left": [KEY_A, KEY_LEFT],
-		"turn_right": [KEY_D, KEY_RIGHT], "interact": [KEY_E, KEY_F], "horn": [KEY_H],
+		"turn_right": [KEY_D, KEY_RIGHT], "interact": [KEY_E], "flashlight": [KEY_F], "horn": [KEY_H],
 		"speed_up": [KEY_EQUAL, KEY_KP_ADD, KEY_R], "speed_down": [KEY_MINUS, KEY_KP_SUBTRACT, KEY_Q],
 		"pause": [KEY_ESCAPE], "fullscreen": [KEY_F11], "quality": [KEY_G, KEY_F2], "fps_limit": [KEY_L], "debug_info": [KEY_F3],
 	}
@@ -180,7 +180,7 @@ func _setup_input() -> void:
 	mac_fs.ctrl_pressed = true
 	mac_fs.meta_pressed = true
 	InputMap.action_add_event("fullscreen", mac_fs)
-	var joy := {"interact": JOY_BUTTON_A, "horn": JOY_BUTTON_Y, "speed_up": JOY_BUTTON_RIGHT_SHOULDER,
+	var joy := {"interact": JOY_BUTTON_A, "flashlight": JOY_BUTTON_X, "horn": JOY_BUTTON_Y, "speed_up": JOY_BUTTON_RIGHT_SHOULDER,
 		"speed_down": JOY_BUTTON_LEFT_SHOULDER, "pause": JOY_BUTTON_START}
 	for a in joy:
 		var jb := InputEventJoypadButton.new()

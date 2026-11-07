@@ -106,11 +106,20 @@ func apply() -> void:
 		game.moon.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_4_SPLITS
 		game.moon.directional_shadow_split_1 = 0.1
 	get_viewport().positional_shadow_atlas_size = SHADOW_ATLAS[level]
-	if game.lights:
-		game.lights.max_shadows = SHADOWED_LAMPS[level]
+	shadow_budget()
 	if game.hud:
 		game.hud.set_lens(level >= 1)
 	_apply_scale()
+
+
+## Lamp shadows, and the torch's: on Low the torch has none, otherwise it takes the place of one lamp shadow,
+## so switching it on does not make the GPU work harder.
+func shadow_budget() -> void:
+	var torch_on: bool = game.player != null and game.player.torch != null and game.player.torch_on
+	if game.player and game.player.torch:
+		game.player.torch.shadow_enabled = level >= 1
+	if game.lights:
+		game.lights.max_shadows = SHADOWED_LAMPS[level] - (1 if torch_on and level >= 1 else 0)
 
 
 ## Godot 4.7's Metal driver turns on texture atomics from the macOS version alone, but the texture format

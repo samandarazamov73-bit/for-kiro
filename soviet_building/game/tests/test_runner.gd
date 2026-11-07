@@ -203,6 +203,20 @@ func _run() -> void:
 	await wait(0.2)
 	check(rat["state"] in ["flee", "hidden"], "rat flees from the wheelchair (%s)" % rat["state"])
 
+	# --- torch -----------------------------------------------------------------------------------
+	place(Vector3(48.0, float(lv[0]) + 0.02, -8.1), PI / 2)
+	await wait(0.2)
+	var key_f := InputEventKey.new()
+	key_f.physical_keycode = KEY_F
+	key_f.pressed = true
+	pl._unhandled_input(key_f)
+	await wait(0.3)
+	var aim: float = (-pl.torch.global_basis.z).dot(-pl.cam.global_basis.z)
+	check(pl.torch_on and pl.torch.visible and aim > 0.98 and not InputMap.event_is_action(key_f, "interact"),
+		"F switches the torch on, it shines where you look (%.3f), F no longer opens doors" % aim)
+	pl._unhandled_input(key_f)
+	check(not pl.torch_on and not pl.torch.visible, "and F switches it off")
+
 	print("RESULT: %d passed, %d failed" % [passes, fails])
 	print("ALL TESTS PASSED" if fails == 0 else "TESTS FAILED")
 	get_tree().quit(0 if fails == 0 else 1)

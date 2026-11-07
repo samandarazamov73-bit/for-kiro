@@ -89,12 +89,25 @@ def fixtures_for_room(r):
     if r.kind == "shaft":
         return out
     if r.kind in ("stair_main", "stair_end"):
+        # one ceiling light over each storey's lobby, under the next storey's slab, and one over each
+        # mid-landing, under the mid-landing above it (on the top storey: over the floor landing, under the
+        # roof). The second light used to
+        # hang at slab height over the middle of the flights, in the open well where there is no ceiling,
+        # so it floated in the air and the next flights ran through it.
         f = stair_frame(r)
+        u_mid = STAIR_LANDING + STAIR_RUN + (CELL_U - STAIR_LANDING - STAIR_RUN) / 2
+        v_flights = (2 * FLIGHT_W + FLIGHT_GAP) / 2
         for i in range(4):
             zt = LEVELS[i + 1] - SLAB_T if i < 3 else r.z1
-            for (u, v) in ((CELL_U / 2, (CELL_V + 2.98) / 2), (CELL_U / 2, 1.5)):
-                x, y = f(u, v)
-                out.append(("plafond", x, y, zt, 0))
+            x, y = f(CELL_U / 2, (CELL_V + 2.98) / 2)
+            out.append(("plafond", x, y, zt, 0))
+            if i < 3:
+                zm_above = LEVELS[i + 1] + RISERS_PER_FLIGHT * RISER - 0.2 if i < 2 else r.z1
+                x, y = f(u_mid, v_flights)
+                out.append(("plafond", x, y, zm_above, 0))
+            else:                       # top storey: over the floor landing, under the roof
+                x, y = f(STAIR_LANDING / 2, v_flights)
+                out.append(("plafond", x, y, r.z1, 0))
         return out
     if r.kind in ("corridor", "corridor_patient"):
         n = int(round((x1 - x0) / 3.0))

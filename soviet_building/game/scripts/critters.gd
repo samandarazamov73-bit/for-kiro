@@ -11,6 +11,7 @@ var room_boxes := {}
 var rat_mesh := {}
 var roach_mesh := {}
 var rng := RandomNumberGenerator.new()
+var _beam_t := 0.0
 
 
 func setup(g) -> void:
@@ -206,6 +207,22 @@ func scare(pos: Vector3, radius: float) -> void:
 			_scatter(r, pos)
 
 
+## The torch: rats and roaches caught in its beam run away.
+func scare_beam(beam: Transform3D, reach: float) -> void:
+	var fwd: Vector3 = -beam.basis.z.normalized()
+	for is_rat in [true, false]:
+		for r in (rats if is_rat else roaches):
+			if r["state"] == "hidden":
+				continue
+			var to: Vector3 = r["node"].global_position - beam.origin
+			var d: float = to.length()
+			if d < reach and d > 0.01 and fwd.dot(to / d) > 0.96:
+				if is_rat:
+					_flee_rat(r, beam.origin)
+				else:
+					_scatter(r, beam.origin)
+
+
 func light_on(room: String) -> void:
 	for r in rats:
 		if r["state"] != "hidden" and r["area"]["room"] == room:
@@ -255,6 +272,11 @@ func _process(dt: float) -> void:
 	if game.player == null:
 		return
 	var pp: Vector3 = game.player.global_position
+	_beam_t -= dt
+	if _beam_t <= 0.0:
+		_beam_t = 0.25
+		if game.player.torch_on:
+			scare_beam(game.player.torch.global_transform, 8.0)
 	for r in rats:
 		_rat(r, dt, pp)
 	for r in roaches:

@@ -228,12 +228,29 @@ def pilasters(lay, level, mb):
     corr = [r for r in lay.rooms.values() if r.level == level and r.kind.startswith(("corridor", "service_corridor"))]
     for r in corr:
         mat = r.wall
+        # openings down to the floor in the corridor walls (open junctions, doorways), per wall face
+        holes = {}
+        for e in lay.edges[r.rid]:
+            if e.axis == "x":
+                holes.setdefault(round(e.coord, 3), []).extend(
+                    (c[0], c[1]) for c in lay.face_cuts(e) if c[4] in ("open", "door") and c[2] <= r.z0 + 0.3)
         for (x0, x1, y0, y1) in r.rects:
             for x in COLUMNS_X:
                 if not (x0 + 0.25 < x < x1 - 0.25):
                     continue
                 for (ya, yb, face_y) in ((CORR_Y0, CORR_Y0 + COLUMN - CORR_T, +1), (CORR_Y1 - COLUMN + CORR_T, CORR_Y1, -1)):
                     xa, xb = x - COLUMN / 2, x + COLUMN / 2
+                    # a pilaster standing partly in front of an opening (the passage to the entrance hall,
+                    # the nurse posts' counters) showed its open back as a thin plate: keep only the part
+                    # in front of solid wall, so its side face lines up with the opening's edge
+                    for (ha, hb) in holes.get(round(ya if face_y > 0 else yb, 3), []):
+                        if ha < xb and hb > xa:
+                            if (ha + hb) / 2 < x:
+                                xa = max(xa, hb)
+                            else:
+                                xb = min(xb, ha)
+                    if xb - xa < 0.12:
+                        continue
                     z0, z1 = L, L + CEIL_H
                     yf = yb if face_y > 0 else ya
                     ywall = ya if face_y > 0 else yb
