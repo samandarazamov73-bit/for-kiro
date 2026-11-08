@@ -4,18 +4,34 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
 FONT = "/usr/share/fonts/google-noto-vf/NotoSans[wght].ttf"
+# Without the Noto Sans variable font (macOS, Windows, other Linux): static fonts with Cyrillic, regular and bold.
+FALLBACK_FONTS = [
+    ("/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf", "/usr/share/fonts/truetype/noto/NotoSans-Bold.ttf"),
+    ("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"),
+    ("/System/Library/Fonts/Supplemental/Arial.ttf", "/System/Library/Fonts/Supplemental/Arial Bold.ttf"),
+    ("/Library/Fonts/Arial.ttf", "/Library/Fonts/Arial Bold.ttf"),
+    ("C:/Windows/Fonts/arial.ttf", "C:/Windows/Fonts/arialbd.ttf"),
+]
 
 
 _FONTS = {}
 
 
 def font(sz, weight="Regular"):
-    """Noto Sans variable font; available named instances: Regular, Medium, SemiBold, Bold."""
+    """Noto Sans variable font; available named instances: Regular, Medium, SemiBold, Bold. Falls back to a
+    static regular or bold font from FALLBACK_FONTS when the variable font is not installed."""
     weight = {"Black": "Bold", "Heavy": "Bold"}.get(weight, weight)
     key = (int(sz), weight)
     if key not in _FONTS:
-        f = ImageFont.truetype(FONT, int(sz))
-        f.set_variation_by_name(weight)
+        if os.path.exists(FONT):
+            f = ImageFont.truetype(FONT, int(sz))
+            f.set_variation_by_name(weight)
+        else:
+            pair = next((p for p in FALLBACK_FONTS if os.path.exists(p[0])), None)
+            if pair is None:
+                raise SystemExit("no font with Cyrillic found: set FONT or FALLBACK_FONTS in texcore.py")
+            bold = weight in ("SemiBold", "Bold")
+            f = ImageFont.truetype(pair[1] if bold and os.path.exists(pair[1]) else pair[0], int(sz))
         _FONTS[key] = f
     return _FONTS[key]
 

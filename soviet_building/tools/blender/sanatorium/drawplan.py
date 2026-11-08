@@ -3,7 +3,6 @@ import math
 from PIL import Image, ImageDraw, ImageFont
 from .params import *
 
-FONT = "/usr/share/fonts/google-noto-vf/NotoSans[wght].ttf"
 DEPT_COL = {
     "A_entrance": (236, 214, 160), "B_admin": (196, 214, 236), "C_medical": (196, 236, 214),
     "D_catering": (240, 196, 170), "E_technical": (214, 206, 196), "P_patient": (232, 222, 240), "S_spa": (186, 226, 236),
@@ -16,9 +15,8 @@ DEPT_EN = {"A_entrance": "Entrance & reception", "B_admin": "Administration", "C
 
 
 def font(sz, bold=False):
-    f = ImageFont.truetype(FONT, sz)
-    f.set_variation_by_name("Bold" if bold else "Regular")
-    return f
+    from .texcore import font as tfont        # the same font, with its fallbacks
+    return tfont(sz, "Bold" if bold else "Regular")
 
 
 def draw_level(layout, lvl, path, S=30, title=""):
