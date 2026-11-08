@@ -1,0 +1,148 @@
+name: Forest Drive
+
+on:
+  push:
+    branches: [forest-drive]
+    paths:
+      - "forest_drive/**"
+      - ".github/workflows/forest-drive.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  GODOT_VERSION: "4.7.2"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Godot and export templates
+        run: |
+          base="https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable"
+          curl -sSL -o godot.zip "$base/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip"
+          unzip -q godot.zip
+          sudo mv "Godot_v${GODOT_VERSION}-stable_linux.x86_64" /usr/local/bin/godot
+          curl -sSL -o templates.tpz "$base/Godot_v${GODOT_VERSION}-stable_export_templates.tpz"
+          dir="$HOME/.local/share/godot/export_templates/${GODOT_VERSION}.stable"
+          mkdir -p "$dir"
+          unzip -q templates.tpz -d tpl
+          mv tpl/templates/* "$dir/"
+          rm -rf tpl templates.tpz godot.zip
+
+      - name: Import assets and run the checks
+        working-directory: forest_drive
+        run: |
+          godot --headless --path . --import > import.log 2>&1 || true
+          godot --headless --path . -- --test 2>&1 | tee test.log
+          grep -q "ALL TESTS PASSED" test.log
+
+      - name: Export Windows, Linux and macOS builds
+        working-directory: forest_drive
+        run: |
+          mkdir -p ../out/ForestDrive-Windows ../out/ForestDrive-Windows-LowEnd ../out/ForestDrive-Linux
+          godot --headless --path . --export-release "Windows"
+          godot --headless --path . --export-release "Windows Low-End (Mobile renderer)"
+          godot --headless --path . --export-release "Linux"
+          godot --headless --path . --export-release "macOS"
+          test -s ../out/ForestDrive-Windows/ForestDrive.exe
+          test -s ../out/ForestDrive-Windows/ForestDrive.pck
+          test -s ../out/ForestDrive-macOS.zip
+
+      - name: Package
+        working-directory: out
+        run: |
+          zip -qr -9 ForestDrive-Windows.zip ForestDrive-Windows
+          zip -qr -9 ForestDrive-Windows-LowEnd.zip ForestDrive-Windows-LowEnd
+          zip -qr -9 ForestDrive-Linux.zip ForestDrive-Linux
+          ls -la *.zip
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: forest-drive-builds
+          path: out/*.zip
+          retention-days: 7
+
+  # Apple Silicon runner: launch the exported Mac app, then benchmark every preset from source (Metal).
+  mac-benchmark:
+    needs: build
+    runs-on: macos-15
+    env:
+      GODOT_MTL_DISABLE_IMAGE_ATOMICS: "1"
+    defaults:
+      run:
+        shell: bash -eo pipefail {0}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: forest-drive-builds
+          path: builds
+
+      - name: Sign and launch the exported Mac app
+        run: |
+          uname -m
+          system_profiler SPDisplaysDataType | head -20 | tee gpu.txt
+          mkdir app && cd app
+          ditto -x -k ../builds/ForestDrive-macOS.zip .
+          rm -rf "Forest Drive.app/Contents/_CodeSignature" || true
+          APP=$(ls -d *.app | head -1)
+          codesign --force --deep --sign - --timestamp=none "$APP"
+          "./$APP/Contents/MacOS/$(ls "$APP/Contents/MacOS" | head -1)" --quit-after 900 2>&1 | tee ../app.log
+          grep -q "Forest Drive loaded" ../app.log
+          ! grep -q "SCRIPT ERROR" ../app.log
+
+      - name: Install Godot editor for macOS
+        working-directory: forest_drive
+        run: |
+          curl -sSL -o godot.zip "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_macos.universal.zip"
+          unzip -q godot.zip && rm godot.zip
+          ./Godot.app/Contents/MacOS/Godot --headless --path . --import > /dev/null 2>&1 || true
+
+      - name: Benchmark all presets (M-series GPU, Metal)
+        timeout-minutes: 20
+        continue-on-error: true
+        working-directory: forest_drive
+        run: |
+          mkdir -p ../bench
+          ./Godot.app/Contents/MacOS/Godot --path . --resolution 1920x1080 -- --bench --all-presets --seconds=25 --out="$PWD/../bench" 2>&1 \
+            | grep --line-buffered -v "^   at:" | tee ../bench/bench.log
+          ./Godot.app/Contents/MacOS/Godot --path . --resolution 1920x1080 -- --shots --quality=high --out="$PWD/../bench/shots" 2>&1 | tail -20
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: forest-drive-mac-benchmark
+          path: |
+            app.log
+            gpu.txt
+            bench/
+          retention-days: 14
+
+  # Windows runner (no GPU: Godot falls back to D3D12/WARP). Proves the Windows build starts,
+  # compiles every shader and builds the world; the frame rate there is not meaningful.
+  windows-launch:
+    needs: build
+    runs-on: windows-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: forest-drive-builds
+          path: builds
+      - name: Launch the exported Windows build
+        shell: pwsh
+        run: |
+          Expand-Archive builds/ForestDrive-Windows.zip -DestinationPath app
+          $exe = Get-ChildItem -Recurse app -Filter "ForestDrive.console.exe" | Select-Object -First 1
+          & $exe.FullName --quit-after 300 --rendering-driver d3d12 2>&1 | Tee-Object -FilePath app.log
+          if (-not (Select-String -Path app.log -Pattern "Forest Drive loaded" -Quiet)) { exit 1 }
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: forest-drive-windows-launch
+          path: app.log
